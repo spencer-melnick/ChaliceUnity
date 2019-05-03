@@ -154,8 +154,8 @@ MonoBehaviour:
   cameraObject: {fileID: 2113554625}
   horizontalRotationSpeed: 150
   verticalRotationSpeed: 200
-  maxCameraPitch: 280
-  minCameraPitch: 80
+  maxCameraPitch: 80
+  minCameraPitch: -80
 --- !u!4 &44031174
 Transform:
   m_ObjectHideFlags: 0
