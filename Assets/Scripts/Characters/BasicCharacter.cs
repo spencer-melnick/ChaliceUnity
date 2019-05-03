@@ -13,6 +13,7 @@ public class BasicCharacter : Character
     Vector3 _desiredVelocity;
     Quaternion _desiredRotation;
     bool _isLooking = false;
+    bool _isGrounded = false;
 
     public override void Move(Vector3 moveDirection)
     {
@@ -42,10 +43,24 @@ public class BasicCharacter : Character
         HandleMove();
     }
 
+    private void OnControllerColliderHit(ControllerColliderHit hit)
+    {
+        float slope = Vector3.Angle(hit.normal, Vector3.up);
+        
+        if (slope > _characterController.slopeLimit)
+        {
+            _currentVelocity = Vector3.ProjectOnPlane(_currentVelocity, hit.normal);
+        }
+        else
+        {
+            _isGrounded = true;
+        }
+    }
+
     void HandleMove()
     {
         // Accelerate and move
-        if (!_characterController.isGrounded)
+        if (!_isGrounded)
         {
             // Apply gravity
             _currentVelocity.y -= 9.8f * Time.deltaTime;
@@ -56,6 +71,8 @@ public class BasicCharacter : Character
             _currentVelocity = Vector3.MoveTowards(_currentVelocity, _desiredVelocity, moveAcceleration * Time.deltaTime);
             _currentVelocity.y = 0.0f;
         }
+        _isGrounded = false;
+
         _characterController.Move(_currentVelocity * Time.deltaTime);
     }
 
