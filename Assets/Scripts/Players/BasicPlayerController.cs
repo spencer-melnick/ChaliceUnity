@@ -24,11 +24,6 @@ public class BasicPlayerController : MonoBehaviour
         MoveCharacter();
     }
 
-    private void LateUpdate()
-    {
-        // TODO: Resolve collisions
-    }
-
     void RotateCamera()
     {
         // Check if the controlled camera is active

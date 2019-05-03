@@ -8,7 +8,7 @@ public class BasicCharacter : Character
     public float moveAcceleration = 20.0f;
     public float rotationSpeedDegrees = 30.0f;
 
-    Rigidbody _rigidbody;
+    CharacterController _characterController;
     Vector3 _currentVelocity;
     Vector3 _desiredVelocity;
     Quaternion _desiredRotation;
@@ -29,7 +29,12 @@ public class BasicCharacter : Character
 
     void Start()
     {
-        _rigidbody = GetComponent<Rigidbody>();
+        _characterController = GetComponent<CharacterController>();
+    }
+
+    private void Update()
+    {
+        HandleRotation();
     }
 
     void FixedUpdate()
@@ -40,22 +45,38 @@ public class BasicCharacter : Character
     void HandleMove()
     {
         // Accelerate and move
-        _currentVelocity = Vector3.MoveTowards(_currentVelocity, _desiredVelocity, moveAcceleration * Time.fixedDeltaTime);
-        _rigidbody.MovePosition(transform.position + _currentVelocity * Time.fixedDeltaTime);
-
-        // If character is moving, start rotation
-        if (!Mathf.Approximately(_currentVelocity.magnitude, 0.0f))
+        if (!_characterController.isGrounded)
         {
-            // If the character isn't looking in a specific direction...
-            if (!_isLooking)
+            // Apply gravity
+            _currentVelocity.y -= 9.8f * Time.deltaTime;
+        }
+        else
+        {
+            // Only apply walking acceleration when on the ground
+            _currentVelocity = Vector3.MoveTowards(_currentVelocity, _desiredVelocity, moveAcceleration * Time.deltaTime);
+            _currentVelocity.y = 0.0f;
+        }
+        _characterController.Move(_currentVelocity * Time.deltaTime);
+    }
+
+    void HandleRotation()
+    {
+        // If character is moving, start rotation
+        if (!Mathf.Approximately(_currentVelocity.x, 0.0f) || !Mathf.Approximately(_currentVelocity.z, 0.0f))
+        {
+            // If the character isn't looking in a specific direction and is moving...
+            if (!_isLooking && !Mathf.Approximately(_desiredVelocity.magnitude, 0.0f))
             {
                 // ...the character's desired look rotation is the direction they're moving
-                _desiredRotation = Quaternion.LookRotation(_currentVelocity.normalized, Vector3.up);
+                // Ignore gravity when calculating look
+                Vector3 desiredLook = _desiredVelocity;
+                desiredLook.y = 0.0f;
+                _desiredRotation = Quaternion.LookRotation(desiredLook.normalized, Vector3.up);
             }
 
             // Rotate towards desired look rotation
-            Quaternion rotation = Quaternion.RotateTowards(transform.rotation, _desiredRotation, rotationSpeedDegrees * Time.fixedDeltaTime);
-            _rigidbody.MoveRotation(rotation);
+            Quaternion rotation = Quaternion.RotateTowards(transform.rotation, _desiredRotation, rotationSpeedDegrees * Time.deltaTime);
+            transform.transform.rotation = (rotation);
         }
     }
 }
