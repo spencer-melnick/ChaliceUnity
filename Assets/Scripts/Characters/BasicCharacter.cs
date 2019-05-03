@@ -11,6 +11,10 @@ public class BasicCharacter : Character
     public float gravitationalAcceleration = 9.8f;
     public float slopeLimitDegrees = 45.0f;
 
+    // If a slope is closer this distance, the player will snap to it while walking down
+    public float slopeDropLimit = 0.1f;
+
+    // Any raycast speculated collisions will be prevented by this distance
     public float speculativeCollisionResolutionDistance = 0.01f;
 
     CapsuleCollider _capsuleCollider;
@@ -55,9 +59,22 @@ public class BasicCharacter : Character
 
     void FixedUpdate()
     {
+        if (!_isGrounded)
+        {
+            TrySnapToSlope();
+        }
+
         HandleAcceleration();
         MoveSpeculatively(_velocity * Time.fixedDeltaTime, 3);
         _rigidBody.MovePosition(_position);
+    }
+
+    private void OnGrounded()
+    {
+        _isGrounded = true;
+
+        // Reset gravity on ground collision to allow for proper slope walking
+        _velocity.y = 0.0f;
     }
 
     private void OnHit(RaycastHit hit)
@@ -66,10 +83,32 @@ public class BasicCharacter : Character
         
         if (slope < slopeLimitDegrees)
         {
-            _isGrounded = true;
+            OnGrounded();
+        }
+    }
 
-            // Reset graity on ground collision to allow for proper slope walking
-            _velocity.y = 0.0f;
+    bool CastFromOwnCapsule(Vector3 ray, out RaycastHit hit)
+    {
+        // Compute capsule sphere locations
+        Vector3 capsuleTop = transform.position + _capsuleCollider.center + Vector3.up * (_capsuleCollider.height / 2 - _capsuleCollider.radius);
+        Vector3 capsuleBottom = transform.position + _capsuleCollider.center + Vector3.down * (_capsuleCollider.height / 2 - _capsuleCollider.radius);
+        Vector3 direction = ray.normalized;
+
+        return Physics.CapsuleCast(capsuleTop, capsuleBottom, _capsuleCollider.radius, direction, out hit, ray.magnitude);
+    }
+
+    // Attempts to snap the player to a slope if they walk off of it
+    void TrySnapToSlope()
+    {
+        if (CastFromOwnCapsule(Vector3.down * slopeDropLimit, out RaycastHit hit))
+        {
+            float slope = Vector3.Angle(hit.normal, Vector3.up);
+
+            if (slope < slopeLimitDegrees)
+            {
+                _position += Vector3.down * Mathf.Max(hit.distance - speculativeCollisionResolutionDistance, 0.0f);
+                OnGrounded();
+            }
         }
     }
 
@@ -127,19 +166,14 @@ public class BasicCharacter : Character
         // Check for base case
         if (steps != 0)
         {
-            // Compute capsule sphere locations
-            Vector3 capsuleTop = transform.position + _capsuleCollider.center + Vector3.up * (_capsuleCollider.height / 2 - _capsuleCollider.radius);
-            Vector3 capsuleBottom = transform.position + _capsuleCollider.center + Vector3.down * (_capsuleCollider.height / 2 - _capsuleCollider.radius);
-            Vector3 direction = movement.normalized;
-
-            if (Physics.CapsuleCast(capsuleTop, capsuleBottom, _capsuleCollider.radius, direction, out RaycastHit hit, movement.magnitude))
+            if (CastFromOwnCapsule(movement, out RaycastHit hit))
             {
                 // Handle hit
                 OnHit(hit);
 
                 // Update position by maximum allowed motion
                 float movementDistance = Mathf.Max(0.0f, hit.distance - speculativeCollisionResolutionDistance);
-                Vector3 allowedMotion = movementDistance * direction;
+                Vector3 allowedMotion = movementDistance * movement.normalized;
                 _position += allowedMotion;
 
                 // Attempt to slide along plane for remaining motion
