@@ -17,6 +17,9 @@ public class BasicCharacter : Character
     // Any raycast speculated collisions will be prevented by this distance
     public float speculativeCollisionResolutionDistance = 0.01f;
 
+    public bool penetrationResolution = true;
+    public uint maxPenetrationsPerStep = 10;
+
     CapsuleCollider _capsuleCollider;
     Rigidbody _rigidBody;
 
@@ -24,8 +27,11 @@ public class BasicCharacter : Character
     Vector3 _velocity;
     Vector3 _desiredMovement;
     Quaternion _desiredRotation;
+
     bool _isLooking = false;
     bool _isGrounded = false;
+
+    Collider[] _penetratingColliders;
 
     // Moves and looks in the direction of the movement
     public override void Move(Vector3 moveDirection)
@@ -50,11 +56,9 @@ public class BasicCharacter : Character
         // Make sure that the rigid body is kinematic!
         _rigidBody.isKinematic = true;
         _position = transform.position;
-    }
 
-    private void Update()
-    {
-        HandleRotation();
+        // Allocate collision buffer
+        _penetratingColliders = new Collider[maxPenetrationsPerStep];
     }
 
     void FixedUpdate()
@@ -64,8 +68,10 @@ public class BasicCharacter : Character
             TrySnapToSlope();
         }
 
+        HandleRotation();
         HandleAcceleration();
         MoveSpeculatively(_velocity * Time.fixedDeltaTime, 3);
+        ResolvePenetrations();
         _rigidBody.MovePosition(_position);
     }
 
@@ -87,14 +93,18 @@ public class BasicCharacter : Character
         }
     }
 
+    void CalculateOwnCapsuleParameters(out Vector3 capsuleTop, out Vector3 capsuleBottom, out float radius)
+    {
+        capsuleTop = transform.position + _capsuleCollider.center + Vector3.up * (_capsuleCollider.height / 2 - _capsuleCollider.radius);
+        capsuleBottom = transform.position + _capsuleCollider.center + Vector3.down * (_capsuleCollider.height / 2 - _capsuleCollider.radius);
+        radius = _capsuleCollider.radius;
+    }
+
     bool CastFromOwnCapsule(Vector3 ray, out RaycastHit hit)
     {
-        // Compute capsule sphere locations
-        Vector3 capsuleTop = transform.position + _capsuleCollider.center + Vector3.up * (_capsuleCollider.height / 2 - _capsuleCollider.radius);
-        Vector3 capsuleBottom = transform.position + _capsuleCollider.center + Vector3.down * (_capsuleCollider.height / 2 - _capsuleCollider.radius);
+        CalculateOwnCapsuleParameters(out Vector3 capsuleTop, out Vector3 capsuleBottom, out float radius);
         Vector3 direction = ray.normalized;
-
-        return Physics.CapsuleCast(capsuleTop, capsuleBottom, _capsuleCollider.radius, direction, out hit, ray.magnitude);
+        return Physics.CapsuleCast(capsuleTop, capsuleBottom, radius, direction, out hit, ray.magnitude);
     }
 
     // Attempts to snap the player to a slope if they walk off of it
@@ -154,8 +164,8 @@ public class BasicCharacter : Character
             }
 
             // Rotate towards desired look rotation
-            Quaternion rotation = Quaternion.RotateTowards(transform.rotation, _desiredRotation, rotationSpeedDegrees * Time.deltaTime);
-            transform.rotation = rotation;
+            Quaternion rotation = Quaternion.RotateTowards(transform.rotation, _desiredRotation, rotationSpeedDegrees * Time.fixedDeltaTime);
+            _rigidBody.MoveRotation(rotation);
         }
     }
 
@@ -184,6 +194,31 @@ public class BasicCharacter : Character
             else
             {
                 _position += movement;
+            }
+        }
+    }
+
+    void ResolvePenetrations()
+    {
+        // Check for possible penetrations
+        CalculateOwnCapsuleParameters(out Vector3 capsuleTop, out Vector3 capsuleBottom, out float radius);
+        int penetrations = Physics.OverlapCapsuleNonAlloc(capsuleTop, capsuleBottom, radius, _penetratingColliders);
+
+        if (penetrations > 0)
+        {
+            for (int i = 0; i < penetrations; i++)
+            {
+                Collider penetratingCollider = _penetratingColliders[i];
+
+                // Don't collide with self, and double check using penetration calculaton
+                if (penetratingCollider != _capsuleCollider &&
+                    Physics.ComputePenetration(_capsuleCollider, _position, _rigidBody.rotation,
+                        penetratingCollider, penetratingCollider.transform.position, penetratingCollider.transform.rotation,
+                        out Vector3 direction, out float distance))
+                {
+                    // Todo: add trigger on penetration resolution
+                    _position += direction * distance;
+                }
             }
         }
     }
