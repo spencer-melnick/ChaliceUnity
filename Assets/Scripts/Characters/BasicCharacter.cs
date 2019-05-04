@@ -7,6 +7,7 @@ public class BasicCharacter : Character
     public float moveSpeed = 3.0f;
     public float moveAcceleration = 20.0f;
     public float rotationSpeedDegrees = 30.0f;
+    public float jumpHeight = 2.0f;
 
     public float gravitationalAcceleration = 9.8f;
     public float slopeLimitDegrees = 45.0f;
@@ -52,6 +53,14 @@ public class BasicCharacter : Character
         _isLooking = true;
     }
 
+    public override void Jump()
+    {
+        if (_isGrounded)
+        {
+            _velocity += _groundNormal * Mathf.Sqrt(jumpHeight * gravitationalAcceleration * 2);
+        }
+    }
+
     void Start()
     {
         _capsuleCollider = GetComponent<CapsuleCollider>();
@@ -81,6 +90,7 @@ public class BasicCharacter : Character
         {
             ResolvePenetrations();
         }
+        TrySnapToSlope();
 
         Debug.DrawLine(_position, _position + _velocity, Color.red, Time.fixedDeltaTime);
         _rigidBody.MovePosition(_position);
@@ -131,8 +141,7 @@ public class BasicCharacter : Character
             if (slope < slopeLimitDegrees)
             {
                 float movementDistance = Mathf.Max(hit.distance - collisionResolutionDistance, 0.0f);
-                _position += Vector3.down * Mathf.Max(hit.distance - collisionResolutionDistance, 0.0f);
-                _velocity.y = -movementDistance / Time.fixedDeltaTime;
+                _position += Vector3.down * movementDistance;
 
                 OnGrounded(hit.normal);
             }

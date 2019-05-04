@@ -22,6 +22,11 @@ public class BasicPlayerController : MonoBehaviour
     {
         RotateCamera();
         MoveCharacter();
+
+        if (Input.GetKeyDown(KeyCode.Space))
+        {
+            controlledCharacter.Jump();
+        }
     }
 
     void RotateCamera()

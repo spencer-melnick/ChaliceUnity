@@ -14,4 +14,9 @@ public class Character : MonoBehaviour
     {
 
     }
+
+    public virtual void Jump()
+    {
+
+    }
 }
