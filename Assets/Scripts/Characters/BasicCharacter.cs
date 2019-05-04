@@ -30,6 +30,7 @@ public class BasicCharacter : Character
 
     bool _isLooking = false;
     bool _isGrounded = false;
+    Vector3 _groundNormal = Vector3.up;
 
     Collider[] _penetratingColliders;
 
@@ -63,24 +64,34 @@ public class BasicCharacter : Character
 
     void FixedUpdate()
     {
-        if (!_isGrounded)
-        {
-            TrySnapToSlope();
-        }
-
         HandleRotation();
         HandleAcceleration();
+        // TrySnapToSlope();
+
+        Debug.DrawLine(_position + Vector3.up, _position + Vector3.up + _velocity, Color.blue, Time.fixedDeltaTime);
+
+        _isGrounded = false;
+        _groundNormal = Vector3.up;
         MoveSpeculatively(_velocity * Time.fixedDeltaTime, 3);
-        ResolvePenetrations();
+
+        if (penetrationResolution)
+        {
+            ResolvePenetrations();
+        }
+
+        Debug.DrawLine(_position, _position + _velocity, Color.red, Time.fixedDeltaTime);
         _rigidBody.MovePosition(_position);
     }
 
-    private void OnGrounded()
+    private void OnGrounded(Vector3 groundNormal)
     {
+        _groundNormal = groundNormal;
         _isGrounded = true;
 
         // Reset gravity on ground collision to allow for proper slope walking
-        _velocity.y = 0.0f;
+        // _velocity.y = 0.0f;
+
+        Debug.DrawLine(_position, _position + groundNormal, Color.yellow, Time.fixedDeltaTime);
     }
 
     private void OnHit(RaycastHit hit)
@@ -89,7 +100,7 @@ public class BasicCharacter : Character
         
         if (slope < slopeLimitDegrees)
         {
-            OnGrounded();
+            OnGrounded(hit.normal);
         }
     }
 
@@ -110,14 +121,17 @@ public class BasicCharacter : Character
     // Attempts to snap the player to a slope if they walk off of it
     void TrySnapToSlope()
     {
-        if (CastFromOwnCapsule(Vector3.down * slopeDropLimit, out RaycastHit hit))
+        if (!_isGrounded && CastFromOwnCapsule(Vector3.down * slopeDropLimit, out RaycastHit hit))
         {
             float slope = Vector3.Angle(hit.normal, Vector3.up);
 
             if (slope < slopeLimitDegrees)
             {
+                float movementDistance = Mathf.Max(hit.distance - speculativeCollisionResolutionDistance, 0.0f);
                 _position += Vector3.down * Mathf.Max(hit.distance - speculativeCollisionResolutionDistance, 0.0f);
-                OnGrounded();
+                _velocity.y = -movementDistance / Time.fixedDeltaTime;
+
+                OnGrounded(hit.normal);
             }
         }
     }
@@ -125,27 +139,23 @@ public class BasicCharacter : Character
     // Handles acceleration based on desired movement and gravity
     void HandleAcceleration()
     {
-        // Accelerate and move
-        if (!_isGrounded)
-        {
-            // Apply gravity
-            _velocity.y -= 9.8f * Time.deltaTime;
-        }
-        else
+        // Apply gravity
+        _velocity.y -= gravitationalAcceleration * Time.deltaTime;
+
+        if (_isGrounded)
         {
             // Only apply walking acceleration when on the ground
 
             // Split movement into along ground plane and gravity
-            Vector3 currentMovement = Vector3.ProjectOnPlane(_velocity, Vector3.up);
-            // Vector3 currentGravitationalMovement = _velocity - currentMovement;
-            Vector3 currentGravitationalMovement = Vector3.zero;
+            Quaternion groundRotation = Quaternion.FromToRotation(Vector3.up, _groundNormal);
+            Vector3 currentMovement = Vector3.ProjectOnPlane(_velocity, _groundNormal);
+            Vector3 currentGravitationalMovement = _velocity - currentMovement;
 
             // Accelerate only movement along ground plane
-            currentMovement = Vector3.MoveTowards(currentMovement, _desiredMovement, moveAcceleration * Time.deltaTime);
+            currentMovement = Vector3.MoveTowards(currentMovement, groundRotation * _desiredMovement, moveAcceleration * Time.deltaTime);
+            //currentMovement = _desiredMovement;
             _velocity = currentMovement + currentGravitationalMovement;
         }
-
-        _isGrounded = false;
     }
 
     void HandleRotation()
@@ -189,6 +199,8 @@ public class BasicCharacter : Character
                 // Attempt to slide along plane for remaining motion
                 Vector3 remainingMotion = movement - allowedMotion;
                 Vector3 slidingMotion = Vector3.ProjectOnPlane(remainingMotion, hit.normal);
+
+                _velocity = slidingMotion / Time.fixedDeltaTime;
                 MoveSpeculatively(slidingMotion, steps - 1);
             }
             else
@@ -217,7 +229,8 @@ public class BasicCharacter : Character
                         out Vector3 direction, out float distance))
                 {
                     // Todo: add trigger on penetration resolution
-                    _position += direction * distance;
+                    _position += direction * (distance + speculativeCollisionResolutionDistance);
+                    _velocity = Vector3.ProjectOnPlane(_velocity, direction);
                 }
             }
         }
