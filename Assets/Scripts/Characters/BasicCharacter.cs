@@ -14,11 +14,13 @@ public class BasicCharacter : Character
     // If a slope is closer this distance, the player will snap to it while walking down
     public float slopeDropLimit = 0.1f;
 
-    // Any raycast speculated collisions will be prevented by this distance
-    public float speculativeCollisionResolutionDistance = 0.01f;
+    // Any raycast speculated collisions or found penetrations will be prevented by this distance
+    public float collisionResolutionDistance = 0.01f;
 
     public bool penetrationResolution = true;
     public uint maxPenetrationsPerStep = 10;
+    public uint maxSpeculativeSteps = 15;
+    public uint maxPenetrationResolutionSteps = 2;
 
     CapsuleCollider _capsuleCollider;
     Rigidbody _rigidBody;
@@ -33,6 +35,7 @@ public class BasicCharacter : Character
     Vector3 _groundNormal = Vector3.up;
 
     Collider[] _penetratingColliders;
+    Vector3 _lastFreePosition;
 
     // Moves and looks in the direction of the movement
     public override void Move(Vector3 moveDirection)
@@ -72,7 +75,7 @@ public class BasicCharacter : Character
 
         _isGrounded = false;
         _groundNormal = Vector3.up;
-        MoveSpeculatively(_velocity * Time.fixedDeltaTime, 3);
+        MoveSpeculatively(_velocity * Time.fixedDeltaTime, maxSpeculativeSteps);
 
         if (penetrationResolution)
         {
@@ -127,8 +130,8 @@ public class BasicCharacter : Character
 
             if (slope < slopeLimitDegrees)
             {
-                float movementDistance = Mathf.Max(hit.distance - speculativeCollisionResolutionDistance, 0.0f);
-                _position += Vector3.down * Mathf.Max(hit.distance - speculativeCollisionResolutionDistance, 0.0f);
+                float movementDistance = Mathf.Max(hit.distance - collisionResolutionDistance, 0.0f);
+                _position += Vector3.down * Mathf.Max(hit.distance - collisionResolutionDistance, 0.0f);
                 _velocity.y = -movementDistance / Time.fixedDeltaTime;
 
                 OnGrounded(hit.normal);
@@ -188,11 +191,13 @@ public class BasicCharacter : Character
         {
             if (CastFromOwnCapsule(movement, out RaycastHit hit))
             {
+                Debug.DrawLine(hit.point, hit.point + hit.normal, Color.green, Time.fixedDeltaTime);
+
                 // Handle hit
                 OnHit(hit);
 
                 // Update position by maximum allowed motion
-                float movementDistance = Mathf.Max(0.0f, hit.distance - speculativeCollisionResolutionDistance);
+                float movementDistance = Mathf.Max(0.0f, hit.distance - collisionResolutionDistance);
                 Vector3 allowedMotion = movementDistance * movement.normalized;
                 _position += allowedMotion;
 
@@ -212,26 +217,36 @@ public class BasicCharacter : Character
 
     void ResolvePenetrations()
     {
-        // Check for possible penetrations
-        CalculateOwnCapsuleParameters(out Vector3 capsuleTop, out Vector3 capsuleBottom, out float radius);
-        int penetrations = Physics.OverlapCapsuleNonAlloc(capsuleTop, capsuleBottom, radius, _penetratingColliders);
-
-        if (penetrations > 0)
+        for (int i = 0; i < maxPenetrationResolutionSteps; i++)
         {
-            for (int i = 0; i < penetrations; i++)
-            {
-                Collider penetratingCollider = _penetratingColliders[i];
+            // Check for possible penetrations
+            CalculateOwnCapsuleParameters(out Vector3 capsuleTop, out Vector3 capsuleBottom, out float radius);
+            int penetrations = Physics.OverlapCapsuleNonAlloc(capsuleTop, capsuleBottom, radius, _penetratingColliders);
 
-                // Don't collide with self, and double check using penetration calculaton
-                if (penetratingCollider != _capsuleCollider &&
-                    Physics.ComputePenetration(_capsuleCollider, _position, _rigidBody.rotation,
-                        penetratingCollider, penetratingCollider.transform.position, penetratingCollider.transform.rotation,
-                        out Vector3 direction, out float distance))
+            if (penetrations > 1)
+            {
+                for (int j = 0; j < penetrations; j++)
                 {
-                    // Todo: add trigger on penetration resolution
-                    _position += direction * (distance + speculativeCollisionResolutionDistance);
-                    _velocity = Vector3.ProjectOnPlane(_velocity, direction);
+                    Collider penetratingCollider = _penetratingColliders[j];
+
+                    // Don't collide with self, and double check using penetration calculaton
+                    if (penetratingCollider != _capsuleCollider &&
+                        Physics.ComputePenetration(_capsuleCollider, _position, _rigidBody.rotation,
+                            penetratingCollider, penetratingCollider.transform.position, penetratingCollider.transform.rotation,
+                            out Vector3 direction, out float distance))
+                    {
+                        // Todo: add trigger on penetration resolution
+
+                        // Resolve penetration using speculative motion
+                        _velocity = Vector3.ProjectOnPlane(_velocity, direction);
+                        Vector3 movement = _velocity * Time.fixedDeltaTime + direction * (distance + collisionResolutionDistance);
+                        MoveSpeculatively(movement, 1);
+                    }
                 }
+            }
+            else
+            {
+                break;
             }
         }
     }
