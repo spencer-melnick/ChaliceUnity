@@ -63,7 +63,7 @@ public class Character : MonoBehaviour
 
         DebugDraw();
 
-        MoveSpeculatively();
+        Move();
         ResolvePenetrations();
         _rigidbody.MovePosition(position);
     }
@@ -131,40 +131,30 @@ public class Character : MonoBehaviour
         }
     }
 
-    void MoveSpeculatively()
+    void Move()
     {
-        for (int i = 0; i < maxSpeculativeSteps; i++)
-        {
-            Vector3 movement = velocity * Time.fixedDeltaTime;
-            Debug.DrawLine(position, position + movement, Color.yellow, Time.fixedDeltaTime);
-
-            if (CastFromOwnCapsule(movement, out RaycastHit hit))
-            {
-                position += hit.distance * velocity.normalized;
-                velocity = Vector3.ProjectOnPlane(velocity, hit.normal);
-            }
-            else
-            {
-                position += movement;
-                break;
-            }
-        }
+        MoveSpeculatively(velocity * Time.fixedDeltaTime, true);
     }
 
     // This is used for penetration resolution
-    void MoveSpeculatively(Vector3 movement)
+    void MoveSpeculatively(Vector3 movement, bool affectVelocity)
     {
         for (int i = 0; i < maxSpeculativeSteps; i++)
         {
             if (CastFromOwnCapsule(movement, out RaycastHit hit))
             {
-                position += hit.distance * movement.normalized;
-                velocity = Vector3.ProjectOnPlane(velocity, hit.normal);
+                Vector3 distanceTraveled = hit.distance * movement.normalized;
+                position += distanceTraveled;
+                movement -= distanceTraveled;
+
+                if (affectVelocity)
+                {
+                    velocity = Vector3.ProjectOnPlane(velocity, hit.normal);
+                }
                 movement = Vector3.ProjectOnPlane(movement, hit.normal);
             }
             else
             {
-                velocity = Vector3.ProjectOnPlane(velocity, movement.normalized);
                 position += movement;
                 break;
             }
@@ -208,7 +198,8 @@ public class Character : MonoBehaviour
                         // Attempt to move out of the collision
                         Vector3 movement = direction * distance;
                         Debug.DrawLine(position, position + movement, Color.magenta, Time.fixedDeltaTime);
-                        MoveSpeculatively(movement);
+                        velocity = Vector3.ProjectOnPlane(velocity, direction);
+                        MoveSpeculatively(movement, true);
                     }
                 }
             }
