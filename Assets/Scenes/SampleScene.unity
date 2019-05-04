@@ -154,8 +154,6 @@ MonoBehaviour:
   controlledCamera: {fileID: 963194229}
   horizontalRotationSpeed: 150
   verticalRotationSpeed: 200
-  maxCameraPitch: 80
-  minCameraPitch: -80
 --- !u!4 &44031174
 Transform:
   m_ObjectHideFlags: 0
@@ -570,8 +568,8 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 963194225}
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: 5.51, z: -10}
+  m_LocalRotation: {x: 0.34202015, y: 0, z: 0, w: 0.9396927}
+  m_LocalPosition: {x: 0, y: 7.8778753, z: -7.6604447}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children: []
   m_Father: {fileID: 0}
@@ -591,8 +589,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   target: {fileID: 1988635874}
   targetOffset: {x: 0, y: 1.4, z: 0}
-  cameraOffset: {x: 0, y: 0, z: -7}
+  cameraOffset: {x: 0, y: 0, z: -10}
   orbitAngles: {x: 40, y: 0, z: 0}
+  pitchMax: 80
+  pitchMin: -80
 --- !u!1 &1101361734
 GameObject:
   m_ObjectHideFlags: 0
@@ -877,8 +877,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1620895887}
   m_LocalRotation: {x: -0.258819, y: 0, z: 0, w: 0.9659259}
-  m_LocalPosition: {x: 8, y: 0.914, z: 2.889}
-  m_LocalScale: {x: 2, y: 0.21, z: 4}
+  m_LocalPosition: {x: 8, y: 0.953, z: 2.853}
+  m_LocalScale: {x: 2, y: 0.1, z: 4}
   m_Children: []
   m_Father: {fileID: 0}
   m_RootOrder: 6
@@ -1173,20 +1173,16 @@ MonoBehaviour:
   m_GameObject: {fileID: 1988635874}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 6f2bf8697711d264da0ccef789887857, type: 3}
+  m_Script: {fileID: 11500000, guid: 46db404570113fa409fbae1ffe5797b3, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  moveSpeed: 6
-  moveAcceleration: 40
-  rotationSpeedDegrees: 720
-  jumpHeight: 1
+  groundMoveSpeed: 5
   gravitationalAcceleration: 9.8
-  slopeLimitDegrees: 45
-  slopeDropLimit: 0.07
-  collisionResolutionDistance: 0.01
-  maxPenetrationsPerStep: 10
-  maxSpeculativeSteps: 1
-  maxPenetrationResolutionSteps: 5
+  upVector: {x: 0, y: 1, z: 0}
+  slopeAngleLimit: 45
+  groundSnapDistance: 0.2
+  collisionResolutionDistance: 0.05
+  maxSpeculativeSteps: 15
 --- !u!54 &1988635876
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -1225,7 +1221,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1988635874}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0.1, z: 0}
+  m_LocalPosition: {x: 0, y: 0.05, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children:
   - {fileID: 164186623}

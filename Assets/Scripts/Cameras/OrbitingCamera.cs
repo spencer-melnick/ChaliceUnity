@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+[ExecuteAlways]
 public class OrbitingCamera : MonoBehaviour
 {
     public GameObject target;
@@ -9,11 +10,28 @@ public class OrbitingCamera : MonoBehaviour
     public Vector3 cameraOffset = new Vector3(0.0f, 0.0f, -10.0f);
     public Vector3 orbitAngles = new Vector3(40.0f, 0.0f, 0.0f);
 
+    public float pitchMax = 80.0f;
+    public float pitchMin = -80.0f;
+
     void Update()
     {
-        Vector3 targetPosition = target.transform.position + this.targetOffset;
-        Quaternion rotation = Quaternion.Euler(orbitAngles);
-        Vector3 cameraPosition = targetPosition + rotation * this.cameraOffset;
-        this.transform.SetPositionAndRotation(cameraPosition, rotation);
+        if (target != null)
+        {
+            Vector3 targetPosition = target.transform.position + this.targetOffset;
+
+            // Modulo yaw angle to prevent large values
+            orbitAngles.y %= 360.0f;
+
+            // Wrap pitch angle for clamp
+            if (orbitAngles.x > 180.0f)
+            {
+                orbitAngles.x -= 360.0f;
+            }
+            orbitAngles.x = Mathf.Clamp(orbitAngles.x, pitchMin, pitchMax);
+
+            Quaternion rotation = Quaternion.Euler(orbitAngles);
+            Vector3 cameraPosition = targetPosition + rotation * this.cameraOffset;
+            this.transform.SetPositionAndRotation(cameraPosition, rotation);
+        }
     }
 }
