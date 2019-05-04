@@ -191,7 +191,7 @@ public class Character : MonoBehaviour
                     Collider otherCollider = _overlappingColliders[j];
 
                     // Computer penetration resolution vectors if they exist
-                    if (Physics.ComputePenetration(_capsuleCollider, _capsuleCollider.transform.position, _capsuleCollider.transform.rotation,
+                    if (Physics.ComputePenetration(_capsuleCollider, position, _capsuleCollider.transform.rotation,
                         otherCollider, otherCollider.transform.position, otherCollider.transform.rotation,
                         out Vector3 direction, out float distance))
                     {

@@ -1183,6 +1183,7 @@ MonoBehaviour:
   groundSnapDistance: 0.2
   collisionResolutionDistance: 0.05
   maxSpeculativeSteps: 15
+  maxResolutionSteps: 3
 --- !u!54 &1988635876
 Rigidbody:
   m_ObjectHideFlags: 0
