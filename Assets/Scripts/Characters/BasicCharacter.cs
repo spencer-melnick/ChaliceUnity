@@ -18,7 +18,6 @@ public class BasicCharacter : Character
     // Any raycast speculated collisions or found penetrations will be prevented by this distance
     public float collisionResolutionDistance = 0.01f;
 
-    public bool penetrationResolution = true;
     public uint maxPenetrationsPerStep = 10;
     public uint maxSpeculativeSteps = 15;
     public uint maxPenetrationResolutionSteps = 2;
@@ -33,7 +32,7 @@ public class BasicCharacter : Character
 
     bool _isLooking = false;
     bool _isGrounded = false;
-    Vector3 _groundNormal = Vector3.up;
+    bool _shouldJump = false;
 
     Collider[] _penetratingColliders;
     Vector3 _lastFreePosition;
@@ -57,7 +56,7 @@ public class BasicCharacter : Character
     {
         if (_isGrounded)
         {
-            _velocity += _groundNormal * Mathf.Sqrt(jumpHeight * gravitationalAcceleration * 2);
+            _shouldJump = true;
         }
     }
 
@@ -78,33 +77,18 @@ public class BasicCharacter : Character
     {
         HandleRotation();
         HandleAcceleration();
-        // TrySnapToSlope();
-
-        Debug.DrawLine(_position + Vector3.up, _position + Vector3.up + _velocity, Color.blue, Time.fixedDeltaTime);
 
         _isGrounded = false;
-        _groundNormal = Vector3.up;
         MoveSpeculatively(_velocity * Time.fixedDeltaTime, maxSpeculativeSteps);
-
-        if (penetrationResolution)
-        {
-            ResolvePenetrations();
-        }
+        ResolvePenetrations();
         TrySnapToSlope();
 
-        Debug.DrawLine(_position, _position + _velocity, Color.red, Time.fixedDeltaTime);
         _rigidBody.MovePosition(_position);
     }
 
-    private void OnGrounded(Vector3 groundNormal)
+    private void OnGrounded()
     {
-        _groundNormal = groundNormal;
         _isGrounded = true;
-
-        // Reset gravity on ground collision to allow for proper slope walking
-        // _velocity.y = 0.0f;
-
-        Debug.DrawLine(_position, _position + groundNormal, Color.yellow, Time.fixedDeltaTime);
     }
 
     private void OnHit(RaycastHit hit)
@@ -113,7 +97,7 @@ public class BasicCharacter : Character
         
         if (slope < slopeLimitDegrees)
         {
-            OnGrounded(hit.normal);
+            OnGrounded();
         }
     }
 
@@ -134,16 +118,22 @@ public class BasicCharacter : Character
     // Attempts to snap the player to a slope if they walk off of it
     void TrySnapToSlope()
     {
+        // Only try to snap if the character isn't grounded
+        // Cast from capsule based on the drop limit
         if (!_isGrounded && CastFromOwnCapsule(Vector3.down * slopeDropLimit, out RaycastHit hit))
         {
             float slope = Vector3.Angle(hit.normal, Vector3.up);
 
+            // Only planes less sloped than the limit count as ground
             if (slope < slopeLimitDegrees)
             {
+                // Snap to the ground
                 float movementDistance = Mathf.Max(hit.distance - collisionResolutionDistance, 0.0f);
                 _position += Vector3.down * movementDistance;
+                _velocity += Vector3.down * (movementDistance / Time.fixedDeltaTime);
 
-                OnGrounded(hit.normal);
+                // Set the ground plane to this
+                OnGrounded();
             }
         }
     }
@@ -151,22 +141,23 @@ public class BasicCharacter : Character
     // Handles acceleration based on desired movement and gravity
     void HandleAcceleration()
     {
-        // Apply gravity
-        _velocity.y -= gravitationalAcceleration * Time.deltaTime;
+        // Apply gravity first
+        _velocity += Vector3.down * gravitationalAcceleration * Time.fixedDeltaTime;
 
         if (_isGrounded)
         {
             // Only apply walking acceleration when on the ground
-
-            // Split movement into along ground plane and gravity
-            Quaternion groundRotation = Quaternion.FromToRotation(Vector3.up, _groundNormal);
-            Vector3 currentMovement = Vector3.ProjectOnPlane(_velocity, _groundNormal);
-            Vector3 currentGravitationalMovement = _velocity - currentMovement;
-
             // Accelerate only movement along ground plane
-            currentMovement = Vector3.MoveTowards(currentMovement, groundRotation * _desiredMovement, moveAcceleration * Time.deltaTime);
-            //currentMovement = _desiredMovement;
-            _velocity = currentMovement + currentGravitationalMovement;
+            Vector3 previousMovement = _velocity;
+            Vector3 currentMovement = Vector3.MoveTowards(previousMovement, _desiredMovement, moveAcceleration * Time.fixedDeltaTime);
+
+            _velocity += currentMovement - previousMovement;
+        }
+
+        if (_shouldJump)
+        {
+            _velocity += Vector3.up * Mathf.Sqrt(gravitationalAcceleration * jumpHeight * 2.0f);
+            _shouldJump = false;
         }
     }
 
@@ -200,8 +191,6 @@ public class BasicCharacter : Character
         {
             if (CastFromOwnCapsule(movement, out RaycastHit hit))
             {
-                Debug.DrawLine(hit.point, hit.point + hit.normal, Color.green, Time.fixedDeltaTime);
-
                 // Handle hit
                 OnHit(hit);
 
