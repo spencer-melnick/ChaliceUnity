@@ -19,6 +19,7 @@ public class Character : MonoBehaviour
     public float gravitationalAcceleration = 9.8f;
 
     public float slopeAngleLimit = 45.0f;
+    public float slopeLimitDampening = 0.8f;
     public float groundSnapDistance = 0.1f;
     public float collisionResolutionDistance = 0.05f;
     public uint maxSpeculativeSteps = 15;
@@ -68,7 +69,6 @@ public class Character : MonoBehaviour
 
     private void FixedUpdate()
     {
-        Vector3.up.Normalize();
         ResetGrounded();
         ProbeGround();
         UpdateVelocity();
@@ -262,12 +262,21 @@ public class Character : MonoBehaviour
 
     // Custom triggers (sort of)
 
-    void HandleOnTakeoff(KinematicCollision? collision = null)
+    void HandleOnTakeoff(KinematicCollision? collisionNullable = null)
     {
         // If character took off and is touching a steep slope cancel upward velocity
-        if (collision != null && Vector3.Dot(Vector3.up, velocity) > 0.0f)
+        if (collisionNullable != null && Vector3.Dot(Vector3.up, velocity) > 0.0f)
         {
-            velocity = Vector3.ProjectOnPlane(velocity, Vector3.up);
+            KinematicCollision collision = collisionNullable.GetValueOrDefault();
+
+            // Calculate vector moving upward along slope
+            // Note: quaternions not necessary here
+            float yaw = Mathf.Atan2(collision.normal.x, collision.normal.z) * 180.0f / Mathf.PI;
+            float pitch = Mathf.Acos(collision.normal.y) * 180.0f / Mathf.PI;
+            Vector3 upwardNormal = Quaternion.Euler(pitch, yaw, 0.0f) * Vector3.forward;
+
+            // Remove velocity along slope vector
+            velocity -= Vector3.Project(velocity, upwardNormal) * slopeLimitDampening;
         }
     }
 
