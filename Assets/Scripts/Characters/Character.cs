@@ -44,6 +44,7 @@ public class Character : MonoBehaviour
     private Vector3 _desiredPlanarVelocity;
     private Vector3 _planarVelocity;
     private float _remainingJumpTime = 0.0f;
+    private bool _isJumping = false;
 
     private Collider[] _overlappingColliders;
 
@@ -79,23 +80,12 @@ public class Character : MonoBehaviour
 
     private void FixedUpdate()
     {
+        HandleJump();
         ResetGrounded();
 
-        if (shouldJump)
+        if (!_isJumping)
         {
-            TryJump();
-            shouldJump = false;
-            _remainingJumpTime = minJumpTime;
-        }
-        else
-        {
-            _remainingJumpTime -= Time.fixedDeltaTime;
-
-            if (_remainingJumpTime <= 0.0f)
-            {
-                _remainingJumpTime = 0.0f;
-                ProbeGround();
-            }
+            ProbeGround();
         }
 
         UpdateVelocity();
@@ -167,9 +157,26 @@ public class Character : MonoBehaviour
         }
     }
 
-    void TryJump()
+    void HandleJump()
     {
-        velocity =  Vector3.ProjectOnPlane(velocity, Vector3.up) + Vector3.up * Mathf.Sqrt(jumpHeight * gravitationalAcceleration * 2);
+        if (shouldJump && !_isJumping && isGrounded)
+        {
+            velocity = Vector3.ProjectOnPlane(velocity, Vector3.up) + Vector3.up * Mathf.Sqrt(jumpHeight * gravitationalAcceleration * 2);
+
+            _remainingJumpTime = minJumpTime;
+            _isJumping = true;
+        }
+        else if (_isJumping)
+        {
+            _remainingJumpTime -= Time.fixedDeltaTime;
+
+            if (_remainingJumpTime <= 0.0f)
+            {
+                _isJumping = false;
+                _remainingJumpTime = 0.0f;
+            }
+        }
+
         shouldJump = false;
     }
 
@@ -278,22 +285,13 @@ public class Character : MonoBehaviour
 
     void UpdateRotation()
     {
-        Quaternion localRotation = _rigidbody.rotation * Quaternion.Inverse(Quaternion.FromToRotation(Vector3.up, Vector3.up));
-        float yaw = localRotation.eulerAngles.y;
-        localRotation = Quaternion.Euler(0.0f, yaw, 0.0f);
-
-        Quaternion rotation;
+        Quaternion rotation = _rigidbody.rotation;
 
         if (isGrounded && !Mathf.Approximately(_desiredPlanarVelocity.magnitude, 0.0f))
         {
-            rotation = Quaternion.FromToRotation(Vector3.up, Vector3.up) * Quaternion.LookRotation(_desiredLook, Vector3.up);
-        }
-        else
-        {
-            rotation = Quaternion.FromToRotation(Vector3.up, Vector3.up) * localRotation;
+            rotation = Quaternion.LookRotation(_desiredLook, Vector3.up);
         }
 
-        
         rotation = Quaternion.RotateTowards(_rigidbody.rotation, rotation, rotationSpeed * Time.fixedDeltaTime);
         _rigidbody.MoveRotation(rotation);
     }

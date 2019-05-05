@@ -698,7 +698,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 963194225}
   m_LocalRotation: {x: 0.34202015, y: 0, z: 0, w: 0.9396927}
-  m_LocalPosition: {x: 0, y: 7.8778753, z: -7.6604447}
+  m_LocalPosition: {x: 0, y: 7.8278756, z: -7.6604447}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children: []
   m_Father: {fileID: 0}
@@ -839,8 +839,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1112141652}
   m_LocalRotation: {x: 0.7071068, y: 0, z: 0, w: 0.7071068}
-  m_LocalPosition: {x: 0, y: 1.2, z: 0.4}
-  m_LocalScale: {x: 0.6, y: 0.05, z: 0.2}
+  m_LocalPosition: {x: 0, y: 1.2, z: 0.35}
+  m_LocalScale: {x: 0.6, y: 0.1, z: 0.3}
   m_Children: []
   m_Father: {fileID: 1988635878}
   m_RootOrder: 1
@@ -1399,10 +1399,13 @@ MonoBehaviour:
   groundMoveSpeed: 5
   groundMoveAcceleration: 15
   rotationSpeed: 500
+  jumpHeight: 2
+  minJumpTime: 0.3
   gravitationalAcceleration: 9.8
-  upVector: {x: 0, y: 1, z: 0}
   slopeAngleLimit: 45
+  slopeTransitionDampening: 0.8
   groundSnapDistance: 0.2
+  isSlopeDifficult: 1
   collisionResolutionDistance: 0.05
   maxSpeculativeSteps: 15
   maxResolutionSteps: 3
@@ -1444,7 +1447,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1988635874}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0.05, z: 0}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children:
   - {fileID: 164186623}
