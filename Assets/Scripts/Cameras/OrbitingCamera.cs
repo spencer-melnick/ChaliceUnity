@@ -27,15 +27,15 @@ public class OrbitingCamera : MonoBehaviour
             }
             orbitAngles.x = Mathf.Clamp(orbitAngles.x, pitchMin, pitchMax);
 
+            // If target is a character, try to rotate about character's up vector
             Quaternion rotation = Quaternion.identity;
-
             Character character = target.GetComponent<Character>();
             if (character != null)
             {
-                rotation = Quaternion.FromToRotation(Vector3.up, character.upVector);
+                rotation = character.LocalizeRotation(rotation);
             }
-            Vector3 targetPosition = target.transform.position + rotation * this.targetOffset;
 
+            Vector3 targetPosition = target.transform.position + rotation * this.targetOffset;
             rotation *= Quaternion.Euler(orbitAngles);
             Vector3 cameraPosition = targetPosition + rotation * this.cameraOffset;
             this.transform.SetPositionAndRotation(cameraPosition, rotation);

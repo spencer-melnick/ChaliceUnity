@@ -36,6 +36,7 @@ public class Character : MonoBehaviour
     private Rigidbody _rigidbody;
     private CapsuleCollider _capsuleCollider;
 
+    private Vector3 _desiredLook;
     private Vector3 _desiredPlanarVelocity;
     private Vector3 _planarVelocity;
 
@@ -43,9 +44,16 @@ public class Character : MonoBehaviour
 
 
     // Public methods
-    public void MovePlanar(Vector3 movement)
+
+    public void MovePlanar(Vector3 movement, Vector3 lookDirection)
     {
         _desiredPlanarVelocity = movement * groundMoveSpeed;
+        _desiredLook = lookDirection;
+    }
+
+    public void MovePlanar(Vector3 movement)
+    {
+        MovePlanar(movement, movement.normalized);
     }
 
 
@@ -144,7 +152,8 @@ public class Character : MonoBehaviour
             // Rotate planar velocity around ground plane
             Quaternion groundRotation = Quaternion.FromToRotation(upVector, ground.normal);
             velocity = LocalizeRotation(groundRotation) * _planarVelocity;
-            Debug.DrawLine(position, position + velocity, Color.blue, Time.fixedDeltaTime);
+            Debug.DrawLine(position, position + velocity, Color.blue, 1.0f);
+            Debug.DrawLine(position, position + ground.normal, Color.green, 1.0f);
         }
         else
         {
@@ -235,13 +244,24 @@ public class Character : MonoBehaviour
 
     void UpdateRotation()
     {
+        Quaternion localRotation = _rigidbody.rotation * Quaternion.Inverse(Quaternion.FromToRotation(Vector3.up, upVector));
+        float yaw = localRotation.eulerAngles.y;
+        localRotation = Quaternion.Euler(0.0f, yaw, 0.0f);
+
+        Quaternion rotation;
+
         if (isGrounded && !Mathf.Approximately(_desiredPlanarVelocity.magnitude, 0.0f))
         {
-            Quaternion rotation = Quaternion.LookRotation(_desiredPlanarVelocity, Vector3.up);
-            rotation = LocalizeRotation(rotation);
-            rotation = Quaternion.RotateTowards(_rigidbody.transform.rotation, rotation, rotationSpeed * Time.fixedDeltaTime);
-            _rigidbody.MoveRotation(rotation);
+            rotation = Quaternion.FromToRotation(Vector3.up, upVector) * Quaternion.LookRotation(_desiredLook, Vector3.up);
         }
+        else
+        {
+            rotation = Quaternion.FromToRotation(Vector3.up, upVector) * localRotation;
+        }
+
+        
+        rotation = Quaternion.RotateTowards(_rigidbody.rotation, rotation, rotationSpeed * Time.fixedDeltaTime);
+        _rigidbody.MoveRotation(rotation);
     }
 
     // Custom triggers (sort of)
@@ -258,7 +278,7 @@ public class Character : MonoBehaviour
     void HandleOnGrounded()
     {
         Quaternion groundRotation = Quaternion.FromToRotation(upVector, ground.normal);
-        _planarVelocity = Quaternion.Inverse(groundRotation) * Vector3.ProjectOnPlane(velocity, ground.normal);
+        _planarVelocity = Quaternion.Inverse(LocalizeRotation(groundRotation)) * Vector3.ProjectOnPlane(velocity, ground.normal);
     }
 
 
@@ -295,7 +315,8 @@ public class Character : MonoBehaviour
     {
         if (upVector != Vector3.up)
         {
-            return Quaternion.FromToRotation(Vector3.up, upVector) * vector;
+            Vector3 currentUp = _rigidbody.rotation * Vector3.up;
+            return Quaternion.FromToRotation(Vector3.up, currentUp) * vector;
         }
         else
         {
