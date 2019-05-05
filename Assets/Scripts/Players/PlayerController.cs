@@ -52,6 +52,11 @@ public class PlayerController : MonoBehaviour
             Quaternion lookDirection = Quaternion.Euler(0.0f, cameraDirection.eulerAngles.y, 0.0f);
             movement = lookDirection * movement;
             controlledCharacter.MovePlanar(movement);
+
+            if (Input.GetKeyDown(KeyCode.Space))
+            {
+                controlledCharacter.Jump();
+            }
         }
     }
 }

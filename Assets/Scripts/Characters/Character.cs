@@ -16,17 +16,21 @@ public class Character : MonoBehaviour
     public float groundMoveSpeed = 5.0f;
     public float groundMoveAcceleration = 15.0f;
     public float rotationSpeed = 10.0f;
+    public float jumpHeight = 2.0f;
+    public float minJumpTime = 0.3f;
     public float gravitationalAcceleration = 9.8f;
 
     public float slopeAngleLimit = 45.0f;
-    public float slopeLimitDampening = 0.8f;
+    public float slopeTransitionDampening = 0.8f;
     public float groundSnapDistance = 0.1f;
+    public bool isSlopeDifficult = true;
     public float collisionResolutionDistance = 0.05f;
     public uint maxSpeculativeSteps = 15;
     public uint maxResolutionSteps = 10;
 
     public Vector3 position { get; private set; }
     public Vector3 velocity { get; private set; }
+    public bool shouldJump { get; private set; }
     public bool isGrounded { get; private set; }
     public bool wasGrounded { get; private set; }
     public KinematicCollision ground { get; private set; }
@@ -39,6 +43,7 @@ public class Character : MonoBehaviour
     private Vector3 _desiredLook;
     private Vector3 _desiredPlanarVelocity;
     private Vector3 _planarVelocity;
+    private float _remainingJumpTime = 0.0f;
 
     private Collider[] _overlappingColliders;
 
@@ -56,6 +61,11 @@ public class Character : MonoBehaviour
         MovePlanar(movement, movement.normalized);
     }
 
+    public void Jump()
+    {
+        shouldJump = true;
+    }
+
 
     // Unity overrides
     private void Awake()
@@ -70,7 +80,24 @@ public class Character : MonoBehaviour
     private void FixedUpdate()
     {
         ResetGrounded();
-        ProbeGround();
+
+        if (shouldJump)
+        {
+            TryJump();
+            shouldJump = false;
+            _remainingJumpTime = minJumpTime;
+        }
+        else
+        {
+            _remainingJumpTime -= Time.fixedDeltaTime;
+
+            if (_remainingJumpTime <= 0.0f)
+            {
+                _remainingJumpTime = 0.0f;
+                ProbeGround();
+            }
+        }
+
         UpdateVelocity();
         TryMove();
         ResolvePenetrations();
@@ -140,6 +167,12 @@ public class Character : MonoBehaviour
         }
     }
 
+    void TryJump()
+    {
+        velocity =  Vector3.ProjectOnPlane(velocity, Vector3.up) + Vector3.up * Mathf.Sqrt(jumpHeight * gravitationalAcceleration * 2);
+        shouldJump = false;
+    }
+
     void UpdateVelocity()
     {
         if (isGrounded)
@@ -150,6 +183,11 @@ public class Character : MonoBehaviour
             // Rotate planar velocity around ground plane
             Quaternion groundRotation = Quaternion.FromToRotation(Vector3.up, ground.normal);
             velocity = groundRotation * _planarVelocity;
+
+            if (isSlopeDifficult && velocity.y > 0.0f)
+            {
+                velocity *= Mathf.Cos(ground.slope * Mathf.PI / 180.0f);
+            }
         }
         else
         {
@@ -276,7 +314,7 @@ public class Character : MonoBehaviour
             Vector3 upwardNormal = Quaternion.Euler(pitch, yaw, 0.0f) * Vector3.forward;
 
             // Remove velocity along slope vector
-            velocity -= Vector3.Project(velocity, upwardNormal) * slopeLimitDampening;
+            velocity -= Vector3.Project(velocity, upwardNormal) * slopeTransitionDampening;
         }
     }
 
