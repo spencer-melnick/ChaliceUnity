@@ -197,6 +197,12 @@ public class Character : MonoBehaviour
                     {
                         // Attempt to move out of the collision
                         Vector3 movement = direction * distance;
+
+                        // If character is moving into ground plane, cancel that motion
+                        if (isGrounded && Vector3.Dot(ground.normal, movement) < 0)
+                        {
+                            movement = Vector3.ProjectOnPlane(movement, ground.normal);
+                        }
                         Debug.DrawLine(position, position + movement, Color.magenta, Time.fixedDeltaTime);
                         velocity = Vector3.ProjectOnPlane(velocity, direction);
                         MoveSpeculatively(movement, true);
