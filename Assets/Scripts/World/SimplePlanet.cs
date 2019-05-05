@@ -4,7 +4,7 @@ using UnityEngine;
 
 public class SimplePlanet : MonoBehaviour
 {
-    public Character character;
+    public SpecialGravityCharacter character;
 
     void Update()
     {

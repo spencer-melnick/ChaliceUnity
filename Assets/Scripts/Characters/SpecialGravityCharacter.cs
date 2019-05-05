@@ -4,7 +4,7 @@ using UnityEngine;
 
 #pragma warning disable IDE1006 // Naming Styles
 
-public class Character : MonoBehaviour
+public class SpecialGravityCharacter : MonoBehaviour
 {
     public struct KinematicCollision
     {
@@ -18,6 +18,7 @@ public class Character : MonoBehaviour
     public float rotationSpeed = 10.0f;
     public float gravitationalAcceleration = 9.8f;
 
+    public Vector3 upVector = Vector3.up;
     public float slopeAngleLimit = 45.0f;
     public float groundSnapDistance = 0.1f;
     public float collisionResolutionDistance = 0.05f;
@@ -60,6 +61,7 @@ public class Character : MonoBehaviour
     private void Awake()
     {
         position = transform.position;
+        transform.rotation = LocalizeRotation(Quaternion.Euler(0.0f, transform.rotation.eulerAngles.y, 0.0f));
         _rigidbody = GetComponent<Rigidbody>();
         _capsuleCollider = GetComponent<CapsuleCollider>();
 
@@ -68,7 +70,7 @@ public class Character : MonoBehaviour
 
     private void FixedUpdate()
     {
-        Vector3.up.Normalize();
+        upVector.Normalize();
         ResetGrounded();
         ProbeGround();
         UpdateVelocity();
@@ -84,7 +86,7 @@ public class Character : MonoBehaviour
     {
         KinematicCollision groundCollision = new KinematicCollision
         {
-            normal = Vector3.up,
+            normal = upVector,
             slope = 0.0f
         };
 
@@ -99,20 +101,20 @@ public class Character : MonoBehaviour
         CalculateOwnCapsuleParameters(out Vector3 capsuleTop, out Vector3 capsuleBottom, out float radius);
 
         // Move capsule bottom up just a bit to make sure we raycast against anything that's already touching
-        capsuleBottom += Vector3.up * collisionResolutionDistance;
+        capsuleBottom += upVector * collisionResolutionDistance;
 
         // Check for ground by casting our capsule down
-        if (Physics.CapsuleCast(capsuleTop, capsuleBottom, radius, -Vector3.up, out RaycastHit capsuleHit, groundSnapDistance))
+        if (Physics.CapsuleCast(capsuleTop, capsuleBottom, radius, -upVector, out RaycastHit capsuleHit, groundSnapDistance))
         {
             groundCollision.point = capsuleHit.point;
             groundCollision.normal = capsuleHit.normal;
-            groundCollision.slope = Vector3.Angle(groundCollision.normal, Vector3.up);
+            groundCollision.slope = Vector3.Angle(groundCollision.normal, upVector);
 
             // Try to find surface normal if possible, using raycast
             if (Physics.Raycast(capsuleBottom, -capsuleHit.normal, out RaycastHit rayHit, (groundSnapDistance + radius)))
             {
                 groundCollision.normal = rayHit.normal;
-                groundCollision.slope = Vector3.Angle(groundCollision.normal, Vector3.up);
+                groundCollision.slope = Vector3.Angle(groundCollision.normal, upVector);
             }
 
             if (groundCollision.slope <= slopeAngleLimit)
@@ -122,7 +124,7 @@ public class Character : MonoBehaviour
                 ground = groundCollision;
 
                 // Snap to ground
-                position += Vector3.up * -(capsuleHit.distance - collisionResolutionDistance);
+                position += upVector * -(capsuleHit.distance - collisionResolutionDistance);
 
                 if (!wasGrounded)
                 {
@@ -148,12 +150,14 @@ public class Character : MonoBehaviour
             _planarVelocity = Vector3.MoveTowards(_planarVelocity, _desiredPlanarVelocity, groundMoveAcceleration * Time.fixedDeltaTime);
 
             // Rotate planar velocity around ground plane
-            Quaternion groundRotation = Quaternion.FromToRotation(Vector3.up, ground.normal);
-            velocity = groundRotation * _planarVelocity;
+            Quaternion groundRotation = Quaternion.FromToRotation(upVector, ground.normal);
+            velocity = LocalizeRotation(groundRotation) * _planarVelocity;
+            Debug.DrawLine(position, position + velocity, Color.blue, 1.0f);
+            Debug.DrawLine(position, position + ground.normal, Color.green, 1.0f);
         }
         else
         {
-            velocity += Vector3.up * -gravitationalAcceleration * Time.fixedDeltaTime;
+            velocity += upVector * -gravitationalAcceleration * Time.fixedDeltaTime;
         }
     }
 
@@ -240,7 +244,7 @@ public class Character : MonoBehaviour
 
     void UpdateRotation()
     {
-        Quaternion localRotation = _rigidbody.rotation * Quaternion.Inverse(Quaternion.FromToRotation(Vector3.up, Vector3.up));
+        Quaternion localRotation = _rigidbody.rotation * Quaternion.Inverse(Quaternion.FromToRotation(Vector3.up, upVector));
         float yaw = localRotation.eulerAngles.y;
         localRotation = Quaternion.Euler(0.0f, yaw, 0.0f);
 
@@ -248,14 +252,14 @@ public class Character : MonoBehaviour
 
         if (isGrounded && !Mathf.Approximately(_desiredPlanarVelocity.magnitude, 0.0f))
         {
-            rotation = Quaternion.FromToRotation(Vector3.up, Vector3.up) * Quaternion.LookRotation(_desiredLook, Vector3.up);
+            rotation = Quaternion.FromToRotation(Vector3.up, upVector) * Quaternion.LookRotation(_desiredLook, Vector3.up);
         }
         else
         {
-            rotation = Quaternion.FromToRotation(Vector3.up, Vector3.up) * localRotation;
+            rotation = Quaternion.FromToRotation(Vector3.up, upVector) * localRotation;
         }
 
-        
+
         rotation = Quaternion.RotateTowards(_rigidbody.rotation, rotation, rotationSpeed * Time.fixedDeltaTime);
         _rigidbody.MoveRotation(rotation);
     }
@@ -265,23 +269,24 @@ public class Character : MonoBehaviour
     void HandleOnTakeoff(KinematicCollision? collision = null)
     {
         // If character took off and is touching a steep slope cancel upward velocity
-        if (collision != null && Vector3.Dot(Vector3.up, velocity) > 0.0f)
+        if (collision != null && Vector3.Dot(upVector, velocity) > 0.0f)
         {
-            velocity = Vector3.ProjectOnPlane(velocity, Vector3.up);
+            velocity = Vector3.ProjectOnPlane(velocity, upVector);
         }
     }
 
     void HandleOnGrounded()
     {
-        _planarVelocity = Vector3.ProjectOnPlane(velocity, ground.normal);
+        Quaternion groundRotation = Quaternion.FromToRotation(upVector, ground.normal);
+        _planarVelocity = Quaternion.Inverse(LocalizeRotation(groundRotation)) * Vector3.ProjectOnPlane(velocity, ground.normal);
     }
 
 
     // Helper functions
     void CalculateOwnCapsuleParameters(out Vector3 capsuleTop, out Vector3 capsuleBottom, out float radius)
     {
-        capsuleTop = transform.position +_capsuleCollider.center + Vector3.up * (_capsuleCollider.height / 2 - _capsuleCollider.radius);
-        capsuleBottom = transform.position + _capsuleCollider.center + Vector3.up * -(_capsuleCollider.height / 2 - _capsuleCollider.radius);
+        capsuleTop = transform.position + LocalizeVector(_capsuleCollider.center + Vector3.up * (_capsuleCollider.height / 2 - _capsuleCollider.radius));
+        capsuleBottom = transform.position + LocalizeVector(_capsuleCollider.center + Vector3.up * -(_capsuleCollider.height / 2 - _capsuleCollider.radius));
         radius = _capsuleCollider.radius;
     }
 
@@ -290,5 +295,32 @@ public class Character : MonoBehaviour
         CalculateOwnCapsuleParameters(out Vector3 capsuleTop, out Vector3 capsuleBottom, out float radius);
         Vector3 direction = ray.normalized;
         return Physics.CapsuleCast(capsuleTop, capsuleBottom, radius, direction, out hit, ray.magnitude);
+    }
+
+    // Localizes a rotation to our up vector
+    public Quaternion LocalizeRotation(Quaternion rotation)
+    {
+        if (upVector != Vector3.up)
+        {
+            return Quaternion.FromToRotation(Vector3.up, upVector) * rotation;
+        }
+        else
+        {
+            return rotation;
+        }
+    }
+
+    // Rotates a vector with our up vector
+    public Vector3 LocalizeVector(Vector3 vector)
+    {
+        if (upVector != Vector3.up)
+        {
+            Vector3 currentUp = _rigidbody.rotation * Vector3.up;
+            return Quaternion.FromToRotation(Vector3.up, currentUp) * vector;
+        }
+        else
+        {
+            return vector;
+        }
     }
 }
