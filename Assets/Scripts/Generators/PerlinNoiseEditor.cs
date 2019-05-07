@@ -15,8 +15,8 @@ public class PerlinNoiseEditor : Editor
 
     public override void OnInspectorGUI()
     {
-        _perlinNoise.resolution = EditorGUILayout.Vector2IntField("Resolution", _perlinNoise.resolution);
-        _perlinNoise.scale = EditorGUILayout.Vector2Field("Scale", _perlinNoise.scale);
+        _perlinNoise.resolution = EditorGUILayout.Vector3IntField("Resolution", _perlinNoise.resolution);
+        _perlinNoise.scale = EditorGUILayout.Vector3Field("Scale", _perlinNoise.scale);
 
         int octaves = EditorGUILayout.IntField("Octaves", (int)_perlinNoise.octaves);
         if (octaves <= 0)
@@ -24,7 +24,8 @@ public class PerlinNoiseEditor : Editor
             octaves = 1;
         }
         _perlinNoise.octaves = (uint)octaves;
-        _perlinNoise.persistance = EditorGUILayout.Slider("Persistance", _perlinNoise.persistance, 0.0f, 1.0f);
+        _perlinNoise.persistence = EditorGUILayout.Slider("Persistance", _perlinNoise.persistence, 0.0f, 1.0f);
+        _perlinNoise.seed = EditorGUILayout.IntField("Seed", _perlinNoise.seed);
 
         if (GUILayout.Button("Generate Texture"))
         {
@@ -32,6 +33,6 @@ public class PerlinNoiseEditor : Editor
         }
 
         EditorGUILayout.Separator();
-        GUILayout.Label(_perlinNoise.noiseTexture, GUILayout.MaxHeight(200.0f));
+        GUILayout.Label(_perlinNoise.previewTexture, GUILayout.MaxHeight(200.0f));
     }
 }
