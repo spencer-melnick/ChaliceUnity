@@ -1,4 +1,8 @@
-Release
+x64/Release/Build
+x86/Release/Build
+x64/Debug/Build
+x86/Debug/Build
+
 *.hint
 *.obj
 *.iobj
@@ -7,5 +11,3 @@ Release
 *.filters
 *.user
 *.meta
-x64
-x86
