@@ -3,7 +3,7 @@
 
 #include "pch.h"
 #include "framework.h"
-#include "PerlinNoisePlugin.h"
+#include "NoiseGeneratorPlugin.h"
 
 #include <array>
 #include <numeric>
@@ -180,7 +180,7 @@ float applyContrast(float input, float contrast)
 	return 0.5f + ((input - input * contrast) / (contrast - std::abs(input) * contrast + 1.0f)) / 2.0f;
 }
 
-PERLINNOISEPLUGIN_API void GeneratePerlinNoiseImage2D(unsigned int resolutionX, unsigned int resolutionY,
+NOISEGENERATORPLUGIN_API void GeneratePerlinNoiseImage2D(unsigned int resolutionX, unsigned int resolutionY,
 	float scaleX, float scaleY,
 	float octaves, float persistence, float contrast, float data[])
 {
@@ -207,7 +207,7 @@ PERLINNOISEPLUGIN_API void GeneratePerlinNoiseImage2D(unsigned int resolutionX, 
 	}
 }
 
-PERLINNOISEPLUGIN_API void GeneratePerlinNoiseImage3D(unsigned int resolutionX, unsigned int resolutionY, unsigned int resolutionZ,
+NOISEGENERATORPLUGIN_API void GeneratePerlinNoiseImage3D(unsigned int resolutionX, unsigned int resolutionY, unsigned int resolutionZ,
 	float scaleX, float scaleY, float scaleZ,
 	float octaves, float persistence, float contrast, float data[])
 {
