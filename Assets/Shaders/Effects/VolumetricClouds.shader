@@ -135,7 +135,7 @@ Shader "Unlit/Clouds 1"
                 float debugValue = 1;
 
 				float3 rayPos = input.worldPos;
-				float3 rayDir = input.viewDir;
+				float3 rayDir = normalize(input.viewDir);
                 rayPos = snapToView(rayPos, rayDir, stepSize);
 
                 // Do opacity march through volume texture

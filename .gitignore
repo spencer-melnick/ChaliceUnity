@@ -48,5 +48,5 @@ sysinfo.txt
 crashlytics-build.properties
 
 # Ignore Plugins
-[Aa]ssets/[Pp]lugins
-[Aa]ssets/[Pp]lugins.meta
+# [Aa]ssets/[Pp]lugins
+# [Aa]ssets/[Pp]lugins.meta

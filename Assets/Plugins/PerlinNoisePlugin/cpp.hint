@@ -1,0 +1,2 @@
+#define PERLINNOISEPLUGIN_API __declspec(dllexport)
+#define PERLINNOISEPLUGIN_API __declspec(dllimport)
