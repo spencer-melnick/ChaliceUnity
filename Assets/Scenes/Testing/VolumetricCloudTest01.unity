@@ -335,6 +335,7 @@ MonoBehaviour:
   scale: {x: 5, y: 5, z: 5}
   octaves: 5
   persistence: 0.5
+  contrast: 0.5
   seed: 0
 --- !u!1 &2041295140
 GameObject:

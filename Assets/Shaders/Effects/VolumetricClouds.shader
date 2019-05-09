@@ -90,7 +90,8 @@ Shader "Unlit/Clouds 1"
 			// Custom code
 
             float AdjustContrast(float color, float contrast) {
-                return saturate(lerp(0.5, color, contrast));
+                //return saturate(lerp(0.5, color, contrast));
+				return color;
             }
 
 			inline float4 sampleNoise(float3 coord)

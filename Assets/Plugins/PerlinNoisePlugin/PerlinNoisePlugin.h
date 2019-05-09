@@ -18,9 +18,9 @@ extern "C"
 
 	PERLINNOISEPLUGIN_API void GeneratePerlinNoiseImage2D(unsigned int resolutionX, unsigned int resolutionY,
 		float scaleX, float scaleY,
-		float octaves, float persistence, float contrast, float* data);
+		float octaves, float persistence, float contrast, float data[]);
 
 	PERLINNOISEPLUGIN_API void GeneratePerlinNoiseImage3D(unsigned int resolutionX, unsigned int resolutionY, unsigned int resolutionZ,
 		float scaleX, float scaleY, float scaleZ,
-		float octaves, float persistence, float contrast, float* data);
+		float octaves, float persistence, float contrast, float data[]);
 }

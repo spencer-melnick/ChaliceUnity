@@ -13,6 +13,7 @@
 
 const int permutations = 256;
 std::array<int, permutations * 2> hashTable;
+bool seeded = false;
 
 void SeedGenerator(unsigned int seed)
 {
@@ -22,6 +23,8 @@ void SeedGenerator(unsigned int seed)
 	std::iota(hashTable.begin(), hashTable.begin() + permutations, 0);
 	std::shuffle(hashTable.begin(), hashTable.end(), random);
 	std::copy(hashTable.begin(), hashTable.begin() + (permutations - 1), hashTable.begin() + permutations);
+
+	seeded = true;
 }
 
 struct HashResult
@@ -32,6 +35,11 @@ struct HashResult
 float fade(float t)
 {
 	return t * t * t * (t * (t * 6 - 15) + 10);
+}
+
+int hashLookup(int x)
+{
+	return hashTable[static_cast<unsigned int>(x) % permutations];
 }
 
 HashResult hashCube(int x, int y, int z, bool repeat = true)
@@ -49,14 +57,14 @@ HashResult hashCube(int x, int y, int z, bool repeat = true)
 		zi %= permutations;
 	}
 
-	result.aaa = hashTable[hashTable[hashTable[ x] +  y]  + z];
-	result.aab = hashTable[hashTable[hashTable[ x] +  y] + zi];
-	result.aba = hashTable[hashTable[hashTable[ x] + yi] + z];
-	result.abb = hashTable[hashTable[hashTable[ x] + yi] + zi];
-	result.baa = hashTable[hashTable[hashTable[xi] +  y] + z];
-	result.bab = hashTable[hashTable[hashTable[xi] +  y] + zi];
-	result.bba = hashTable[hashTable[hashTable[xi] + yi] + z];
-	result.bbb = hashTable[hashTable[hashTable[xi] + yi] + zi];
+	result.aaa = hashLookup(hashLookup(hashLookup( x) +  y)  + z);
+	result.aab = hashLookup(hashLookup(hashLookup( x) +  y) + zi);
+	result.aba = hashLookup(hashLookup(hashLookup( x) + yi) + z);
+	result.abb = hashLookup(hashLookup(hashLookup( x) + yi) + zi);
+	result.baa = hashLookup(hashLookup(hashLookup(xi) +  y) + z);
+	result.bab = hashLookup(hashLookup(hashLookup(xi) +  y) + zi);
+	result.bba = hashLookup(hashLookup(hashLookup(xi) + yi) + z);
+	result.bbb = hashLookup(hashLookup(hashLookup(xi) + yi) + zi);
 
 	return result;
 }
@@ -166,52 +174,65 @@ float SamplePerlinNoiseOctaves(float x, float y, float z, float octaves, float p
 
 float applyContrast(float input, float contrast)
 {
-	input *= 2;
-	input -= 1;
+	input *= 2.0f;
+	input -= 1.0f;
 	contrast = -contrast;
-	return (input - input * contrast) / (contrast - std::abs(input) * contrast + 1);
+	return 0.5f + ((input - input * contrast) / (contrast - std::abs(input) * contrast + 1.0f)) / 2.0f;
 }
 
-PERLINNOISEPLUGIN_API void GeneratePerlinNoiseImage2D(unsigned int resolutionX, unsigned int resolutionY, unsigned int resolutionZ,
-	float scaleX, float scaleY, float scaleZ,
-	float octaves, float persistence, float contrast, float* data)
+PERLINNOISEPLUGIN_API void GeneratePerlinNoiseImage2D(unsigned int resolutionX, unsigned int resolutionY,
+	float scaleX, float scaleY,
+	float octaves, float persistence, float contrast, float data[])
 {
+	if (!seeded)
+	{
+		SeedGenerator(0);
+	}
+
 	unsigned int pixelNum = 0;
 
-	float xCoord, yCoord;
+	float xCoord;
+	float yCoord;
 
 	for (unsigned int j = 0; j < resolutionY; j++)
 	{
-		yCoord = static_cast<float>(j) / static_cast<float>(j);
+		yCoord = static_cast<float>(j) * static_cast<float>(scaleY) / static_cast<float>(resolutionY);
 
 		for (unsigned int i = 0; i < resolutionX; i++)
 		{
-			xCoord = static_cast<float>(i) / static_cast<float>(resolutionX);
+			xCoord = static_cast<float>(i) * static_cast<float>(scaleX) / static_cast<float>(resolutionX);
 
-			data[pixelNum++] = applyContrast(SamplePerlinNoiseOctaves(xCoord, yCoord, 0.0f, octaves, persistence), contrast);
+			data[pixelNum++] = applyContrast(SamplePerlinNoiseOctaves(xCoord, yCoord, 0.5f, octaves, persistence), contrast);
 		}
 	}
 }
 
 PERLINNOISEPLUGIN_API void GeneratePerlinNoiseImage3D(unsigned int resolutionX, unsigned int resolutionY, unsigned int resolutionZ,
 	float scaleX, float scaleY, float scaleZ,
-	float octaves, float persistence, float contrast, float* data)
+	float octaves, float persistence, float contrast, float data[])
 {
+	if (!seeded)
+	{
+		SeedGenerator(0);
+	}
+
 	unsigned int pixelNum = 0;
 
-	float xCoord, yCoord, zCoord;
+	float xCoord;
+	float yCoord;
+	float zCoord;
 
 	for (unsigned int k = 0; k < resolutionZ; k++)
 	{
-		zCoord = static_cast<float>(k) / static_cast<float>(resolutionZ);
+		zCoord = static_cast<float>(k) * static_cast<float>(scaleZ) / static_cast<float>(resolutionZ);
 
 		for (unsigned int j = 0; j < resolutionY; j++)
 		{
-			yCoord = static_cast<float>(j) / static_cast<float>(j);
+			yCoord = static_cast<float>(j) * static_cast<float>(scaleY) / static_cast<float>(resolutionY);
 
 			for (unsigned int i = 0; i < resolutionX; i++)
 			{
-				xCoord = static_cast<float>(i) / static_cast<float>(resolutionX);
+				xCoord = static_cast<float>(i) * static_cast<float>(scaleX) / static_cast<float>(resolutionX);
 
 				data[pixelNum++] = applyContrast(SamplePerlinNoiseOctaves(xCoord, yCoord, zCoord, octaves, persistence), contrast);
 			}
