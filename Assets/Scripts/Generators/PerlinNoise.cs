@@ -22,7 +22,7 @@ public class PerlinNoise : MonoBehaviour
         }
     }
 
-    public Vector3 scale = new Vector3(10.0f, 10.0f, 10.0f);
+    public Vector3Int scale = new Vector3Int(10, 10, 10);
     public uint octaves = 4;
     public float persistence = 0.5f;
     public float contrast = 0.5f;
@@ -54,8 +54,11 @@ public class PerlinNoise : MonoBehaviour
     {
         SeedGenerator((uint)seed);
 
-        GeneratePerlinNoiseImage2D((uint)previewResolution.x, (uint)previewResolution.y, scale.x, scale.y,
-            octaves, persistence, contrast, previewPixelsFloats);
+        GeneratePerlinNoiseImage2D((uint)previewResolution.x, (uint)previewResolution.y,
+            (uint)scale.x, (uint)scale.y,
+            octaves, persistence, contrast,
+            0.0f, 1.0f, 0.0f, 1.0f,
+            previewPixelsFloats);
 
         for (int i = 0; i < previewPixelsFloats.Length; i++)
         {
@@ -79,7 +82,11 @@ public class PerlinNoise : MonoBehaviour
         SeedGenerator((uint)seed);
 
         float[] pixelsFloats = new float[resolution.x * resolution.y * resolution.z];
-        GeneratePerlinNoiseImage3D((uint)resolution.x, (uint)resolution.y, (uint)resolution.z, scale.x, scale.y, scale.z, octaves, persistence, contrast, pixelsFloats);
+        GeneratePerlinNoiseImage3D((uint)resolution.x, (uint)resolution.y, (uint)resolution.z,
+            (uint)scale.x, (uint)scale.y, (uint)scale.z,
+            octaves, persistence, contrast,
+            0.0f, 1.0f, 0.0f, 1.0f,
+            pixelsFloats);
 
         for (int i = 0; i < pixelsFloats.Length; i++)
         {
@@ -99,19 +106,27 @@ public class PerlinNoise : MonoBehaviour
     }
 
 
-    [DllImport("PerlinNoisePlugin")]
-    public static extern float SamplePerlinNoiseOctaves(float x, float y, float z, float octaves, float persistence);
-
-    [DllImport("PerlinNoisePlugin")]
+    [DllImport("NoiseGeneratorPlugin")]
     public static extern float SeedGenerator(uint seed);
 
-    [DllImport("PerlinNoisePlugin")]
-    public static extern void GeneratePerlinNoiseImage2D(uint resolutionX, uint resolutionY,
-        float scaleX, float scaleY,
-        float octaves, float persistence, float contrast, [In, Out] float[] data);
+    [DllImport("NoiseGeneratorPlugin")]
+    public static extern float SamplePerlinNoiseOctaves(float x, float y, float z,
+        uint tilesX, uint tilesY, uint tilesZ,
+        float octaves, float persistence);
 
-    [DllImport("PerlinNoisePlugin")]
+    [DllImport("NoiseGeneratorPlugin")]
+    public static extern void GeneratePerlinNoiseImage2D(uint resolutionX, uint resolutionY,
+        uint scaleX, uint scaleY,
+        float octaves, float persistence,
+        float contrast,
+        float valueMin, float valueMax, float remapMin, float remapMax,
+        float[] data);
+
+    [DllImport("NoiseGeneratorPlugin")]
     public static extern void GeneratePerlinNoiseImage3D(uint resolutionX, uint resolutionY, uint resolutionZ,
-        float scaleX, float scaleY, float scaleZ,
-        float octaves, float persistence, float contrast, [In, Out] float[] data);
+        uint scaleX, uint scaleY, uint scaleZ,
+        float octaves, float persistence,
+        float contrast,
+        float valueMin, float valueMax, float remapMin, float remapMax,
+        float[] data);
 }

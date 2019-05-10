@@ -15,6 +15,17 @@ const int permutations = 256;
 std::array<int, permutations * 2> hashTable;
 bool seeded = false;
 
+struct HashCubeResult
+{
+	int aaa, aab, aba, abb, baa, bab, bba, bbb;
+};
+
+enum class NoiseType
+{
+	PerlinNoise,
+	WorleyNoise
+};
+
 void SeedGenerator(unsigned int seed)
 {
 	std::default_random_engine random;
@@ -27,11 +38,6 @@ void SeedGenerator(unsigned int seed)
 	seeded = true;
 }
 
-struct HashResult
-{
-	int aaa, aab, aba, abb, baa, bab, bba, bbb;
-};
-
 float fade(float t)
 {
 	return t * t * t * (t * (t * 6 - 15) + 10);
@@ -42,20 +48,18 @@ int hashLookup(int x)
 	return hashTable[static_cast<unsigned int>(x) % permutations];
 }
 
-HashResult hashCube(int x, int y, int z, bool repeat = true)
+HashCubeResult hashCube(int x, int y, int z,
+	unsigned int tilesX, unsigned int tilesY, unsigned int tilesZ)
 {
-	HashResult result;
+	HashCubeResult result;
 
 	int xi = x + 1;
 	int yi = y + 1;
 	int zi = z + 1;
 
-	if (repeat)
-	{
-		xi %= permutations;
-		yi %= permutations;
-		zi %= permutations;
-	}
+	xi %= tilesX;
+	yi %= tilesY;
+	zi %= tilesZ;
 
 	result.aaa = hashLookup(hashLookup(hashLookup( x) +  y)  + z);
 	result.aab = hashLookup(hashLookup(hashLookup( x) +  y) + zi);
@@ -100,15 +104,12 @@ float lerp(float a, float b, float t)
 	return a + (b - a) * t;
 }
 
-float SamplePerlinNoise(float x, float y, float z, bool repeat = true)
+float SamplePerlinNoise(float x, float y, float z,
+	unsigned int tilesX, unsigned int tilesY, unsigned int tilesZ)
 {
-	// Wrap coords if we are repeating
-	if (repeat)
-	{
-		x = std::fmod(x, static_cast<float>(permutations));
-		y = std::fmod(y, static_cast<float>(permutations));
-		z = std::fmod(z, static_cast<float>(permutations));
-	}
+	tilesX = max(tilesX, permutations);
+	tilesY = max(tilesY, permutations);
+	tilesZ = max(tilesZ, permutations);
 
 	int xi = static_cast<int>(std::floor(x));
 	int yi = static_cast<int>(std::floor(y));
@@ -121,7 +122,7 @@ float SamplePerlinNoise(float x, float y, float z, bool repeat = true)
 	float fx = fade(dx);
 	float fy = fade(dy);
 	float fz = fade(dz);
-	HashResult hashResult = hashCube(xi, yi, zi, permutations);
+	HashCubeResult hashResult = hashCube(xi, yi, zi, tilesX, tilesY, tilesZ);
 
 	float x1, x2, y1, y2, value;
 
@@ -151,7 +152,26 @@ float SamplePerlinNoise(float x, float y, float z, bool repeat = true)
 	return value;
 }
 
-float SamplePerlinNoiseOctaves(float x, float y, float z, float octaves, float persistence)
+float applyContrast(float input, float contrast)
+{
+	input *= 2.0f;
+	input -= 1.0f;
+	contrast = -contrast;
+	return 0.5f + ((input - input * contrast) / (contrast - std::abs(input) * contrast + 1.0f)) / 2.0f;
+}
+
+float remap(float value, float oldMin, float oldMax, float newMin, float newMax)
+{
+	float normalizedValue = (value - oldMin) / (oldMax - oldMin);
+	return normalizedValue * (newMax - newMin) + newMin;
+}
+
+
+
+float SampleNoiseOctaves(float x, float y, float z,
+	unsigned int scaleX, unsigned int scaleY, unsigned int scaleZ,
+	float octaves, float persistence,
+	NoiseType type)
 {
 	float total = 0;
 	float frequency = 1;
@@ -160,7 +180,19 @@ float SamplePerlinNoiseOctaves(float x, float y, float z, float octaves, float p
 
 	for (int i = 0; i < octaves; i++)
 	{
-		total += SamplePerlinNoise(x * frequency, y * frequency, z * frequency, true) * amplitude;
+		switch (type)
+		{
+			case NoiseType::PerlinNoise:
+				total += SamplePerlinNoise(x * frequency, y * frequency, z * frequency, scaleX, scaleY, scaleZ) * amplitude;
+				break;
+
+			case NoiseType::WorleyNoise:
+				// Sample Worley noise
+				break;
+
+			default: break;
+		}
+		
 
 		maxValue += amplitude;
 
@@ -171,45 +203,24 @@ float SamplePerlinNoiseOctaves(float x, float y, float z, float octaves, float p
 	return total / maxValue;
 }
 
-
-float applyContrast(float input, float contrast)
+float SamplePerlinNoiseOctaves(float x, float y, float z,
+	unsigned int tilesX, unsigned int tilesY, unsigned int tilesZ,
+	float octaves, float persistence)
 {
-	input *= 2.0f;
-	input -= 1.0f;
-	contrast = -contrast;
-	return 0.5f + ((input - input * contrast) / (contrast - std::abs(input) * contrast + 1.0f)) / 2.0f;
+	return SampleNoiseOctaves(x, y, z, tilesX, tilesY, tilesZ, octaves, persistence, NoiseType::PerlinNoise);
 }
 
-NOISEGENERATORPLUGIN_API void GeneratePerlinNoiseImage2D(unsigned int resolutionX, unsigned int resolutionY,
-	float scaleX, float scaleY,
-	float octaves, float persistence, float contrast, float data[])
-{
-	if (!seeded)
-	{
-		SeedGenerator(0);
-	}
 
-	unsigned int pixelNum = 0;
 
-	float xCoord;
-	float yCoord;
+// Image generation functions
 
-	for (unsigned int j = 0; j < resolutionY; j++)
-	{
-		yCoord = static_cast<float>(j) * static_cast<float>(scaleY) / static_cast<float>(resolutionY);
-
-		for (unsigned int i = 0; i < resolutionX; i++)
-		{
-			xCoord = static_cast<float>(i) * static_cast<float>(scaleX) / static_cast<float>(resolutionX);
-
-			data[pixelNum++] = applyContrast(SamplePerlinNoiseOctaves(xCoord, yCoord, 0.5f, octaves, persistence), contrast);
-		}
-	}
-}
-
-NOISEGENERATORPLUGIN_API void GeneratePerlinNoiseImage3D(unsigned int resolutionX, unsigned int resolutionY, unsigned int resolutionZ,
-	float scaleX, float scaleY, float scaleZ,
-	float octaves, float persistence, float contrast, float data[])
+void GenerateNoiseImage3D(unsigned int resolutionX, unsigned int resolutionY, unsigned int resolutionZ,
+	unsigned int scaleX, unsigned int scaleY, unsigned int scaleZ,
+	float octaves, float persistence,
+	NoiseType type,
+	float contrast,
+	float valueMin, float valueMax, float remapMin, float remapMax,
+	float data[])
 {
 	if (!seeded)
 	{
@@ -221,6 +232,8 @@ NOISEGENERATORPLUGIN_API void GeneratePerlinNoiseImage3D(unsigned int resolution
 	float xCoord;
 	float yCoord;
 	float zCoord;
+
+	float value;
 
 	for (unsigned int k = 0; k < resolutionZ; k++)
 	{
@@ -234,8 +247,56 @@ NOISEGENERATORPLUGIN_API void GeneratePerlinNoiseImage3D(unsigned int resolution
 			{
 				xCoord = static_cast<float>(i) * static_cast<float>(scaleX) / static_cast<float>(resolutionX);
 
-				data[pixelNum++] = applyContrast(SamplePerlinNoiseOctaves(xCoord, yCoord, zCoord, octaves, persistence), contrast);
+				value = SampleNoiseOctaves(xCoord, yCoord, zCoord, scaleX, scaleY, scaleZ, octaves, persistence, type);
+				value = remap(value, valueMin, valueMax, remapMin, remapMax);
+				value = applyContrast(value, contrast);
+
+				data[pixelNum++] = value;
 			}
 		}
 	}
+}
+
+void GenerateNoiseImage2D(unsigned int resolutionX, unsigned int resolutionY,
+	unsigned int scaleX, unsigned int scaleY,
+	float octaves, float persistence,
+	NoiseType type,
+	float contrast,
+	float valueMin, float valueMax, float remapMin, float remapMax,
+	float data[])
+{
+	GenerateNoiseImage3D(resolutionX, resolutionY, 1,
+		scaleX, scaleY, 1,
+		octaves, persistence,
+		type,
+		contrast,
+		valueMin, valueMax, remapMin, remapMax,
+		data);
+}
+
+
+// Plugin functions
+
+NOISEGENERATORPLUGIN_API void GeneratePerlinNoiseImage2D(unsigned int resolutionX, unsigned int resolutionY,
+	unsigned int scaleX, unsigned int scaleY,
+	float octaves, float persistence,
+	float contrast,
+	float valueMin, float valueMax, float remapMin, float remapMax,
+	float data[])
+{
+	GenerateNoiseImage2D(resolutionX, resolutionY, scaleX, scaleY,
+		octaves, persistence, NoiseType::PerlinNoise,
+		contrast, valueMin, valueMax, remapMin, remapMax, data);
+}
+
+NOISEGENERATORPLUGIN_API void GeneratePerlinNoiseImage3D(unsigned int resolutionX, unsigned int resolutionY, unsigned int resolutionZ,
+	unsigned int scaleX, unsigned int scaleY, unsigned int scaleZ,
+	float octaves, float persistence,
+	float contrast,
+	float valueMin, float valueMax, float remapMin, float remapMax,
+	float data[])
+{
+	GenerateNoiseImage3D(resolutionX, resolutionY, resolutionZ, scaleX, scaleY, scaleZ,
+		octaves, persistence, NoiseType::PerlinNoise,
+		contrast, valueMin, valueMax, remapMin, remapMax, data);
 }

@@ -4,14 +4,25 @@
 extern "C"
 {
 	NOISEGENERATORPLUGIN_API void SeedGenerator(unsigned int seed);
-	NOISEGENERATORPLUGIN_API float SamplePerlinNoise(float x, float y, float z, bool repeat);
-	NOISEGENERATORPLUGIN_API float SamplePerlinNoiseOctaves(float x, float y, float z, float octaves, float persistence);
+
+	NOISEGENERATORPLUGIN_API float SamplePerlinNoise(float x, float y, float z,
+		unsigned int tilesX, unsigned int tilesY, unsigned int tilesZ);
+
+	NOISEGENERATORPLUGIN_API float SamplePerlinNoiseOctaves(float x, float y, float z,
+		unsigned int tilesX, unsigned int tilesY, unsigned int tilesZ,
+		float octaves, float persistence);
 
 	NOISEGENERATORPLUGIN_API void GeneratePerlinNoiseImage2D(unsigned int resolutionX, unsigned int resolutionY,
-		float scaleX, float scaleY,
-		float octaves, float persistence, float contrast, float data[]);
+		unsigned int scaleX, unsigned int scaleY,
+		float octaves, float persistence,
+		float contrast,
+		float valueMin, float valueMax, float remapMin, float remapMax,
+		float data[]);
 
 	NOISEGENERATORPLUGIN_API void GeneratePerlinNoiseImage3D(unsigned int resolutionX, unsigned int resolutionY, unsigned int resolutionZ,
-		float scaleX, float scaleY, float scaleZ,
-		float octaves, float persistence, float contrast, float data[]);
+		unsigned int scaleX, unsigned int scaleY, unsigned int scaleZ,
+		float octaves, float persistence,
+		float contrast,
+		float valueMin, float valueMax, float remapMin, float remapMax,
+		float data[]);
 }

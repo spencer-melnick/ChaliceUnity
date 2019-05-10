@@ -44,7 +44,7 @@ public class PerlinNoiseEditor : Editor
 
         EditorGUILayout.BeginVertical();
         _perlinNoise.resolution = EditorGUILayout.Vector3IntField("Resolution:", _perlinNoise.resolution);
-        _perlinNoise.scale = EditorGUILayout.Vector3Field("Scale:", _perlinNoise.scale);
+        _perlinNoise.scale = EditorGUILayout.Vector3IntField("Scale:", _perlinNoise.scale);
 
         int octaves = EditorGUILayout.IntField("Octaves:", (int)_perlinNoise.octaves);
         if (octaves <= 0)

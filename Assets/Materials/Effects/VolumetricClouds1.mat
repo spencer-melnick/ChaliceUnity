@@ -61,9 +61,9 @@ Material:
         m_Offset: {x: 0, y: 0}
     m_Floats:
     - _BumpScale: 1
-    - _Contrast: 15
+    - _Contrast: 6.96
     - _Cutoff: 0.5
-    - _Density: 2.09
+    - _Density: 3.51
     - _DetailNormalMapScale: 1
     - _DstBlend: 0
     - _GlossMapScale: 1
