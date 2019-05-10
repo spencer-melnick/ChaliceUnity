@@ -5,9 +5,6 @@ extern "C"
 {
 	NOISEGENERATORPLUGIN_API void SeedGenerator(unsigned int seed);
 
-	NOISEGENERATORPLUGIN_API float SamplePerlinNoise(float x, float y, float z,
-		unsigned int tilesX, unsigned int tilesY, unsigned int tilesZ);
-
 	NOISEGENERATORPLUGIN_API float SamplePerlinNoiseOctaves(float x, float y, float z,
 		unsigned int tilesX, unsigned int tilesY, unsigned int tilesZ,
 		float octaves, float persistence);
