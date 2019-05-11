@@ -11,8 +11,15 @@ using Unity.Collections.LowLevel.Unsafe;
 #pragma warning disable IDE1006 // Naming Styles
 
 [ExecuteAlways]
-public class PerlinNoise : MonoBehaviour
+public class NoiseGenerator : MonoBehaviour
 {
+    public enum NoiseType
+    {
+        PerlinNoise,
+        WorleyNoise,
+        InverseWorleyNoise
+    }
+
     public Vector3Int resolution
     {
         get { return _resolution; }
@@ -26,6 +33,15 @@ public class PerlinNoise : MonoBehaviour
     public uint octaves = 4;
     public float persistence = 0.5f;
     public float contrast = 0.5f;
+
+    public float inMapMin = 0.0f;
+    public float inMapMax = 1.0f;
+    public float outMapMin = 0.0f;
+    public float outMapMax = 1.0f;
+
+    public NoiseType noiseType = NoiseType.PerlinNoise;
+    public float blendFactor = 0.5f;
+
     public int seed = 0;
     public Texture3D noiseTexture { get; private set; }
     public Texture2D previewTexture { get; private set; }
@@ -54,19 +70,60 @@ public class PerlinNoise : MonoBehaviour
     {
         SeedGenerator((uint)seed);
 
-        GeneratePerlinNoiseImage2D((uint)previewResolution.x, (uint)previewResolution.y,
-            (uint)scale.x, (uint)scale.y,
-            octaves, persistence, contrast,
-            0.0f, 1.0f, 0.0f, 1.0f,
-            previewPixelsFloats);
-
-        for (int i = 0; i < previewPixelsFloats.Length; i++)
+        switch (noiseType)
         {
-            previewPixels[i].r = previewPixelsFloats[i];
-            previewPixels[i].g = previewPixelsFloats[i];
-            previewPixels[i].b = previewPixelsFloats[i];
-            previewPixels[i].a = 1.0f;
+            case NoiseType.PerlinNoise:
+                GeneratePerlinNoiseImage2D((uint)previewResolution.x, (uint)previewResolution.y,
+                    (uint)scale.x, (uint)scale.y,
+                    octaves, persistence, contrast,
+                    inMapMin, inMapMax, outMapMin, outMapMax,
+                    previewPixelsFloats);
+                break;
+
+            case NoiseType.WorleyNoise:
+            case NoiseType.InverseWorleyNoise:
+                GenerateWorleyNoiseImage2D((uint)previewResolution.x, (uint)previewResolution.y,
+                    (uint)scale.x, (uint)scale.y,
+                    octaves, persistence, contrast,
+                    inMapMin, inMapMax, outMapMin, outMapMax,
+                    previewPixelsFloats);
+                break;
+
+            default:
+                break;
         }
+
+        switch (noiseType)
+        {
+            case NoiseType.PerlinNoise:
+            case NoiseType.WorleyNoise:
+                {
+                    for (int i = 0; i < previewPixelsFloats.Length; i++)
+                    {
+                        previewPixels[i].r = previewPixelsFloats[i];
+                        previewPixels[i].g = previewPixelsFloats[i];
+                        previewPixels[i].b = previewPixelsFloats[i];
+                        previewPixels[i].a = 1.0f;
+                    }
+                }
+                break;
+
+            case NoiseType.InverseWorleyNoise:
+                {
+                    for (int i = 0; i < previewPixelsFloats.Length; i++)
+                    {
+                        previewPixels[i].r = 1.0f - previewPixelsFloats[i];
+                        previewPixels[i].g = 1.0f - previewPixelsFloats[i];
+                        previewPixels[i].b = 1.0f - previewPixelsFloats[i];
+                        previewPixels[i].a = 1.0f;
+                    }
+                }
+                break;
+
+            default:
+                break;
+        }
+
 
         previewTexture.SetPixels(previewPixels);
         previewTexture.Apply();
@@ -82,11 +139,28 @@ public class PerlinNoise : MonoBehaviour
         SeedGenerator((uint)seed);
 
         float[] pixelsFloats = new float[resolution.x * resolution.y * resolution.z];
-        GeneratePerlinNoiseImage3D((uint)resolution.x, (uint)resolution.y, (uint)resolution.z,
-            (uint)scale.x, (uint)scale.y, (uint)scale.z,
-            octaves, persistence, contrast,
-            0.0f, 1.0f, 0.0f, 1.0f,
-            pixelsFloats);
+
+        switch (noiseType)
+        {
+            case NoiseType.PerlinNoise:
+                GeneratePerlinNoiseImage3D((uint)resolution.x, (uint)resolution.y, (uint)resolution.z,
+                    (uint)scale.x, (uint)scale.y, (uint)scale.z,
+                    octaves, persistence, contrast,
+                    inMapMin, inMapMax, outMapMin, outMapMax,
+                    pixelsFloats);
+                break;
+
+            case NoiseType.WorleyNoise:
+                GenerateWorleyNoiseImage3D((uint)resolution.x, (uint)resolution.y, (uint)resolution.z,
+                    (uint)scale.x, (uint)scale.y, (uint)scale.z,
+                    octaves, persistence, contrast,
+                    inMapMin, inMapMax, outMapMin, outMapMax,
+                    pixelsFloats);
+                break;
+
+            default:
+                break;
+        }
 
         for (int i = 0; i < pixelsFloats.Length; i++)
         {
@@ -108,11 +182,6 @@ public class PerlinNoise : MonoBehaviour
 
     [DllImport("NoiseGeneratorPlugin")]
     public static extern float SeedGenerator(uint seed);
-
-    [DllImport("NoiseGeneratorPlugin")]
-    public static extern float SamplePerlinNoiseOctaves(float x, float y, float z,
-        uint tilesX, uint tilesY, uint tilesZ,
-        float octaves, float persistence);
 
     [DllImport("NoiseGeneratorPlugin")]
     public static extern void GeneratePerlinNoiseImage2D(uint resolutionX, uint resolutionY,
@@ -138,4 +207,12 @@ public class PerlinNoise : MonoBehaviour
         float contrast,
         float valueMin, float valueMax, float remapMin, float remapMax,
         float[] data);
+
+    [DllImport("NoiseGeneratorPlugin")]
+    public static extern void GenerateWorleyNoiseImage3D(uint resolutionX, uint resolutionY, uint resolutionZ,
+    uint scaleX, uint scaleY, uint scaleZ,
+    float octaves, float persistence,
+    float contrast,
+    float valueMin, float valueMax, float remapMin, float remapMax,
+    float[] data);
 }
