@@ -1,3 +1,4 @@
+#pragma once
 
 #define NOISEGENERATORPLUGIN_API __declspec(dllexport)
 
