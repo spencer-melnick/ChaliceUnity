@@ -15,13 +15,15 @@
 enum class NoiseType
 {
 	PerlinNoise,
-	WorleyNoise
+	WorleyNoise,
+	PerlinWorleyNoise
 };
 
 float SampleNoiseOctaves(float x, float y, float z,
 	unsigned int scaleX, unsigned int scaleY, unsigned int scaleZ,
 	float octaves, float persistence,
-	NoiseType type)
+	NoiseType type,
+	float blendFactor = 0.5f)
 {
 	float total = 0;
 	unsigned int frequency = 1;
@@ -40,6 +42,14 @@ float SampleNoiseOctaves(float x, float y, float z,
 			case NoiseType::WorleyNoise:
 				total += WorleyNoise::sampleNoise(x * frequency, y * frequency, z * frequency,
 					scaleX * frequency, scaleY * frequency, scaleZ * frequency) * amplitude;
+				break;
+
+			case NoiseType::PerlinWorleyNoise:
+				total += PerlinNoise::sampleNoise(x * frequency, y * frequency, z * frequency,
+					scaleX * frequency, scaleY * frequency, scaleZ * frequency) * amplitude * blendFactor;
+
+				total += (1.0f - WorleyNoise::sampleNoise(x * frequency, y * frequency, z * frequency,
+					scaleX * frequency, scaleY * frequency, scaleZ * frequency)) * amplitude * (1.0f - blendFactor);
 				break;
 
 			default: break;
@@ -185,5 +195,30 @@ void GenerateWorleyNoiseImage3D(unsigned int resolutionX, unsigned int resolutio
 {
 	Image::GenerateNoiseImage3D(resolutionX, resolutionY, resolutionZ, scaleX, scaleY, scaleZ,
 		octaves, persistence, NoiseType::WorleyNoise,
+		contrast, valueMin, valueMax, remapMin, remapMax, data);
+}
+
+
+void GeneratePerlinWorleyNoiseImage2D(unsigned int resolutionX, unsigned int resolutionY,
+	unsigned int scaleX, unsigned int scaleY,
+	float octaves, float persistence,
+	float contrast,
+	float valueMin, float valueMax, float remapMin, float remapMax,
+	float data[])
+{
+	Image::GenerateNoiseImage2D(resolutionX, resolutionY, scaleX, scaleY,
+		octaves, persistence, NoiseType::PerlinWorleyNoise,
+		contrast, valueMin, valueMax, remapMin, remapMax, data);
+}
+
+void GeneratePerlinWorleyNoiseImage3D(unsigned int resolutionX, unsigned int resolutionY, unsigned int resolutionZ,
+	unsigned int scaleX, unsigned int scaleY, unsigned int scaleZ,
+	float octaves, float persistence,
+	float contrast,
+	float valueMin, float valueMax, float remapMin, float remapMax,
+	float data[])
+{
+	Image::GenerateNoiseImage3D(resolutionX, resolutionY, resolutionZ, scaleX, scaleY, scaleZ,
+		octaves, persistence, NoiseType::PerlinWorleyNoise,
 		contrast, valueMin, valueMax, remapMin, remapMax, data);
 }

@@ -43,4 +43,18 @@ extern "C"
 		float contrast,
 		float valueMin, float valueMax, float remapMin, float remapMax,
 		float data[]);
+
+	NOISEGENERATORPLUGIN_API void GeneratePerlinWorleyNoiseImage2D(unsigned int resolutionX, unsigned int resolutionY,
+		unsigned int scaleX, unsigned int scaleY,
+		float octaves, float persistence,
+		float contrast,
+		float valueMin, float valueMax, float remapMin, float remapMax,
+		float data[]);
+
+	NOISEGENERATORPLUGIN_API void GeneratePerlinWorleyNoiseImage3D(unsigned int resolutionX, unsigned int resolutionY, unsigned int resolutionZ,
+		unsigned int scaleX, unsigned int scaleY, unsigned int scaleZ,
+		float octaves, float persistence,
+		float contrast,
+		float valueMin, float valueMax, float remapMin, float remapMax,
+		float data[]);
 }

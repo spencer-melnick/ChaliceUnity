@@ -17,7 +17,8 @@ public class NoiseGenerator : MonoBehaviour
     {
         PerlinNoise,
         WorleyNoise,
-        InverseWorleyNoise
+        InverseWorleyNoise,
+        PerlinWorleyNoise
     }
 
     public Vector3Int resolution
@@ -89,6 +90,14 @@ public class NoiseGenerator : MonoBehaviour
                     previewPixelsFloats);
                 break;
 
+            case NoiseType.PerlinWorleyNoise:
+                GeneratePerlinWorleyNoiseImage2D((uint)previewResolution.x, (uint)previewResolution.y,
+                    (uint)scale.x, (uint)scale.y,
+                    octaves, persistence, contrast,
+                    inMapMin, inMapMax, outMapMin, outMapMax,
+                    previewPixelsFloats);
+                break;
+
             default:
                 break;
         }
@@ -136,6 +145,14 @@ public class NoiseGenerator : MonoBehaviour
             case NoiseType.WorleyNoise:
             case NoiseType.InverseWorleyNoise:
                 GenerateWorleyNoiseImage3D((uint)resolution.x, (uint)resolution.y, (uint)resolution.z,
+                    (uint)scale.x, (uint)scale.y, (uint)scale.z,
+                    octaves, persistence, contrast,
+                    inMapMin, inMapMax, outMapMin, outMapMax,
+                    pixelsFloats);
+                break;
+
+            case NoiseType.PerlinWorleyNoise:
+                GeneratePerlinWorleyNoiseImage3D((uint)resolution.x, (uint)resolution.y, (uint)resolution.z,
                     (uint)scale.x, (uint)scale.y, (uint)scale.z,
                     octaves, persistence, contrast,
                     inMapMin, inMapMax, outMapMin, outMapMax,
@@ -206,4 +223,21 @@ public class NoiseGenerator : MonoBehaviour
     float contrast,
     float valueMin, float valueMax, float remapMin, float remapMax,
     float[] data);
+
+
+    [DllImport("NoiseGeneratorPlugin")]
+    public static extern void GeneratePerlinWorleyNoiseImage2D(uint resolutionX, uint resolutionY,
+        uint scaleX, uint scaleY,
+        float octaves, float persistence,
+        float contrast,
+        float valueMin, float valueMax, float remapMin, float remapMax,
+        float[] data);
+
+    [DllImport("NoiseGeneratorPlugin")]
+    public static extern void GeneratePerlinWorleyNoiseImage3D(uint resolutionX, uint resolutionY, uint resolutionZ,
+        uint scaleX, uint scaleY, uint scaleZ,
+        float octaves, float persistence,
+        float contrast,
+        float valueMin, float valueMax, float remapMin, float remapMax,
+        float[] data);
 }
