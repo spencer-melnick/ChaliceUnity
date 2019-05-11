@@ -93,37 +93,20 @@ public class NoiseGenerator : MonoBehaviour
                 break;
         }
 
-        switch (noiseType)
+        for (int i = 0; i < previewPixelsFloats.Length; i++)
         {
-            case NoiseType.PerlinNoise:
-            case NoiseType.WorleyNoise:
-                {
-                    for (int i = 0; i < previewPixelsFloats.Length; i++)
-                    {
-                        previewPixels[i].r = previewPixelsFloats[i];
-                        previewPixels[i].g = previewPixelsFloats[i];
-                        previewPixels[i].b = previewPixelsFloats[i];
-                        previewPixels[i].a = 1.0f;
-                    }
-                }
-                break;
+            float value = previewPixelsFloats[i];
+            
+            if (noiseType == NoiseType.InverseWorleyNoise)
+            {
+                value = 1.0f - value;
+            }
 
-            case NoiseType.InverseWorleyNoise:
-                {
-                    for (int i = 0; i < previewPixelsFloats.Length; i++)
-                    {
-                        previewPixels[i].r = 1.0f - previewPixelsFloats[i];
-                        previewPixels[i].g = 1.0f - previewPixelsFloats[i];
-                        previewPixels[i].b = 1.0f - previewPixelsFloats[i];
-                        previewPixels[i].a = 1.0f;
-                    }
-                }
-                break;
-
-            default:
-                break;
+            previewPixels[i].r = value;
+            previewPixels[i].g = value;
+            previewPixels[i].b = value;
+            previewPixels[i].a = 1.0f;
         }
-
 
         previewTexture.SetPixels(previewPixels);
         previewTexture.Apply();
@@ -151,6 +134,7 @@ public class NoiseGenerator : MonoBehaviour
                 break;
 
             case NoiseType.WorleyNoise:
+            case NoiseType.InverseWorleyNoise:
                 GenerateWorleyNoiseImage3D((uint)resolution.x, (uint)resolution.y, (uint)resolution.z,
                     (uint)scale.x, (uint)scale.y, (uint)scale.z,
                     octaves, persistence, contrast,
@@ -164,10 +148,17 @@ public class NoiseGenerator : MonoBehaviour
 
         for (int i = 0; i < pixelsFloats.Length; i++)
         {
-            pixels[i].r = pixelsFloats[i];
-            pixels[i].g = pixelsFloats[i];
-            pixels[i].b = pixelsFloats[i];
-            pixels[i].a = pixelsFloats[i];
+            float value = pixelsFloats[i];
+
+            if (noiseType == NoiseType.InverseWorleyNoise)
+            {
+                value = 1.0f - value;
+            }
+
+            pixels[i].r = value;
+            pixels[i].g = value;
+            pixels[i].b = value;
+            pixels[i].a = value;
         }
 
         noiseTexture.SetPixels(pixels);
