@@ -63,7 +63,7 @@ Material:
     - _BumpScale: 1
     - _Contrast: 6.96
     - _Cutoff: 0.5
-    - _Density: 3.51
+    - _Density: 1.57
     - _DetailNormalMapScale: 1
     - _DstBlend: 0
     - _GlossMapScale: 1

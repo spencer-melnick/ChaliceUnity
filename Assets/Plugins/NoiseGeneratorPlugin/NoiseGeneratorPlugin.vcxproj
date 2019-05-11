@@ -172,11 +172,13 @@
     <ClCompile Include="src\Generic.cpp" />
     <ClCompile Include="src\NoiseGeneratorPlugin.cpp" />
     <ClCompile Include="src\PerlinNoise.cpp" />
+    <ClCompile Include="src\WorleyNoise.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\Generic.h" />
     <ClInclude Include="src\NoiseGeneratorPlugin.h" />
     <ClInclude Include="src\PerlinNoise.h" />
+    <ClInclude Include="src\WorleyNoise.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -129,4 +129,13 @@ public class PerlinNoise : MonoBehaviour
         float contrast,
         float valueMin, float valueMax, float remapMin, float remapMax,
         float[] data);
+
+
+    [DllImport("NoiseGeneratorPlugin")]
+    public static extern void GenerateWorleyNoiseImage2D(uint resolutionX, uint resolutionY,
+        uint scaleX, uint scaleY,
+        float octaves, float persistence,
+        float contrast,
+        float valueMin, float valueMax, float remapMin, float remapMax,
+        float[] data);
 }
