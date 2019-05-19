@@ -6,14 +6,24 @@ using UnityEditor;
 [ExecuteAlways]
 public class VolumetricClouds : MonoBehaviour
 {
+    private void Start()
+    {
+        Camera.main.depthTextureMode |= DepthTextureMode.Depth;
+    }
+
     private void OnEnable()
     {
-        Camera.onPreRender += UpdateMVP;
+        // Camera.onPreRender += EnableDepthTexture;
     }
 
     private void OnDisable()
     {
-        Camera.onPreRender -= UpdateMVP;
+        // Camera.onPreRender -= EnableDepthTexture;
+    }
+
+    void EnableDepthTexture(Camera camera)
+    {
+        camera.depthTextureMode |= DepthTextureMode.Depth;
     }
 
     void UpdateMVP(Camera camera)
