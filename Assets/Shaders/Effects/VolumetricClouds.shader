@@ -8,11 +8,12 @@ Shader "Unlit/Clouds 1"
     {
         _NoiseTex ("Noise Texture", 3D) = "white" {}
 
-		_NumSteps ("Raymarching Steps", Range(1, 3000)) = 10
+		_NumSteps ("Raymarching Steps", Range(1, 300)) = 64
         _MarchDistance ("Raymarch Distance", Range(0.0, 1000.0)) = 1.0
-
         _Density ("Density", Range(0.0, 20.0)) = 1.0
+
 		_ShadowDensity ("Shadow Density", Range(0.0, 20.0)) = 1.0
+        _ShadowSteps ("Shadow Steps", Range(1, 300)) = 32
 
         _Offset ("Cloud Center", Vector) = (0, 0, 0, 1)
         _Scale ("Cloud Size", Vector) = (1, 1, 1, 1)
@@ -66,6 +67,7 @@ Shader "Unlit/Clouds 1"
             //**********************
 
 			int _NumSteps;
+            int _ShadowSteps;
 			float _MarchDistance;
             float _Density;
 			float _ShadowDensity;
@@ -175,13 +177,13 @@ Shader "Unlit/Clouds 1"
                     float sampleDensity = sampleNoise(worldToCloudSpace(rayPos)).r * stepSize * _Density;
                     accumulatedDensity += sampleDensity;
 
-                    accumulatedLight += sampleCloudLight(rayPos, _NumSteps, _MarchDistance) * transmittance * sampleDensity;
+                    accumulatedLight += sampleCloudLight(rayPos, _ShadowSteps, _MarchDistance) * transmittance * sampleDensity;
 
                     rayPos += rayStep;
                     transmittance *= (1 - sampleDensity);
                 }
 
-                return float4(accumulatedLight, (1 - transmittance));
+                return float4(accumulatedLight / (1 - transmittance), 1 - transmittance);
             }
 
 			fixed4 frag(vertOutput input) : SV_Target
@@ -208,51 +210,6 @@ Shader "Unlit/Clouds 1"
 				// Limit steps by travel distance
 				int numSteps = min(_NumSteps, travelDepth / viewStepSize);
 				viewStepSize = min(_MarchDistance, travelDepth) / numSteps;
-
-                /*
-
-				float currentDensity = 0;
-				float lightEnergy = 0;
-				float transmittance = 1;
-
-                // Do opacity march through volume texture
-				for (int i = 0; i < numSteps; i++)
-				{
-					float3 coord = worldToCloudSpace(viewRayPos);
-					float sampleDensity = sampleNoise(coord).r * _Density * viewStepSize;
-
-					if (sampleDensity > 0.001)
-					{
-						float3 lightRayPos = viewRayPos;
-						float3 lightRayDir = _WorldSpaceLightPos0;
-						float lightStepSize = _MarchDistance / _NumSteps;
-						float occlusionDensity = 0;
-
-						for (int j = 0; j < _NumSteps; j++)
-						{
-							float lightSampleDensity = sampleNoise(worldToCloudSpace(lightRayPos)).r * lightStepSize * _ShadowDensity;
-							lightRayPos += lightRayDir * lightStepSize;
-							occlusionDensity += lightSampleDensity;
-
-							if (occlusionDensity > 4)
-							{
-								break;
-							}
-						}
-
-						float sampleAbsorbtion = exp(-occlusionDensity) * sampleDensity;
-						lightEnergy += sampleAbsorbtion * transmittance;
-						transmittance *= (1 - sampleDensity);
-					}
-
-					currentDensity += sampleDensity * viewStepSize;
-					viewRayPos += viewRayDir * viewStepSize;
-				}
-
-                float alpha = 1 - transmittance;
-				float lightness = lightEnergy;
-
-                */
 
 				fixed4 color = sampleCloudRay(viewRayPos, viewRayDir, numSteps, min(_MarchDistance, travelDepth));
             
