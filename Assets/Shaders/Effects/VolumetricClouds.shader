@@ -23,6 +23,7 @@ Shader "Unlit/Clouds 1"
 
         [Toggle(USE_POWDER_EFFECT)]
         _UsePowder ("Use Powder Effect", float) = 0.0
+        _PowderFactor ("Powder Factor", Range(0.0, 300.0)) = 10.0
     }
     SubShader
     {
@@ -77,6 +78,7 @@ Shader "Unlit/Clouds 1"
 			float _ShadowDensity;
             float4 _Offset;
             float4 _Scale;
+            float _PowderFactor;
 
             // Loaded matrices
 
@@ -147,7 +149,16 @@ Shader "Unlit/Clouds 1"
                 return position;
             }
 
-            inline float3 sampleCloudLight(float3 rayPos, int numSteps, float rayDistance)
+            inline float powderTerm(float particleDensity)
+            {
+                #ifdef USE_POWDER_EFFECT
+                return 1.0 - exp(-particleDensity * _PowderFactor);
+                #else
+                return 1.0;
+                #endif
+            }
+
+            inline float3 sampleCloudLight(float3 rayPos, int numSteps, float rayDistance, float particleDensity)
             {
                 float stepSize = rayDistance / numSteps;
                 float3 rayDir = _WorldSpaceLightPos0;
@@ -161,7 +172,8 @@ Shader "Unlit/Clouds 1"
                     float sampleDensity = sampleNoise(worldToCloudSpace(rayPos)).r * _ShadowDensity;
                     accumulatedDensity += sampleDensity * stepSize;
 
-                    if (accumulatedDensity > 4)
+                    // If little light can penetrate at this point, stop
+                    if (accumulatedDensity > -log(0.01))
                     {
                         break;
                     }
@@ -170,7 +182,7 @@ Shader "Unlit/Clouds 1"
                 }
 
                 // Find light intensity using Beer's Law
-                return _LightColor0 * exp(-accumulatedDensity);
+                return _LightColor0 * exp(-accumulatedDensity) * powderTerm(particleDensity);
             }
 
             inline float4 sampleCloudRay(float3 rayPos, float3 rayDir, int numSteps, float rayDistance)
@@ -182,13 +194,12 @@ Shader "Unlit/Clouds 1"
 
                 for (int i = 0; i < numSteps; i++)
                 {
-                    float sampleDensity = sampleNoise(worldToCloudSpace(rayPos)).r * _Density * stepSize;
+                    float particleDensity = sampleNoise(worldToCloudSpace(rayPos)).r * _Density * stepSize;
 
                     // Only sample if particle can contribute to color
-                    if (sampleDensity > 0.01)
+                    if (particleDensity > 0.01)
                     {
-                        float particleAlpha = sampleDensity;
-                        float4 particleColor = float4(sampleCloudLight(rayPos, _ShadowSteps, _MarchDistance) * particleAlpha, particleAlpha);
+                        float4 particleColor = float4(sampleCloudLight(rayPos, _ShadowSteps, _MarchDistance, particleDensity) * particleDensity, particleDensity);
 
                         // Alpha blend with particles in front of current particle
                         accumulatedColor += (1 - accumulatedColor.a) * particleColor;
