@@ -24,6 +24,11 @@ Shader "Unlit/Clouds 1"
         [Toggle(USE_POWDER_EFFECT)]
         _UsePowder ("Use Powder Effect", float) = 0.0
         _PowderFactor ("Powder Factor", Range(0.0, 300.0)) = 10.0
+
+        [Toggle(USE_SCATTERING)]
+        _UseScattering ("Use Forward Backward Scattering", float) = 0.0
+        _ForwardScattering ("Forward Scattering", Range(0.0, 1.0)) = 0.1
+        _BackwardScattering ("Backward Scattering", Range(-1.0, 0.0)) = -0.1
     }
     SubShader
     {
@@ -46,6 +51,7 @@ Shader "Unlit/Clouds 1"
 
 			#pragma shader_feature USE_TEMPORAL_JITTER
             #pragma shader_feature USE_POWDER_EFFECT
+            #pragma shader_feature USE_SCATTERING
 
             struct appdata
             {
@@ -78,7 +84,11 @@ Shader "Unlit/Clouds 1"
 			float _ShadowDensity;
             float4 _Offset;
             float4 _Scale;
+
             float _PowderFactor;
+
+            float _ForwardScattering;
+            float _BackwardScattering;
 
             // Loaded matrices
 
@@ -158,7 +168,17 @@ Shader "Unlit/Clouds 1"
                 #endif
             }
 
-            inline float3 sampleCloudLight(float3 rayPos, int numSteps, float rayDistance, float particleDensity)
+            inline float henyeyGreensteinPhase(float eccentricity, float cosTheta)
+            {
+                #ifdef USE_SCATTERING
+                float eccentricitySquared = eccentricity * eccentricity;
+                return (1.0 / 2.0) * (1.0 - eccentricitySquared) / pow(1.0 + eccentricitySquared - 2.0 * eccentricity * cosTheta, 3.0 / 2.0);
+                #else
+                return (1.0 / 2.0);
+                #endif
+            }
+
+            inline float3 sampleCloudLight(float3 rayPos, int numSteps, float rayDistance, float particleDensity, float hgScatterTerm)
             {
                 float stepSize = rayDistance / numSteps;
                 float3 rayDir = _WorldSpaceLightPos0;
@@ -182,7 +202,7 @@ Shader "Unlit/Clouds 1"
                 }
 
                 // Find light intensity using Beer's Law
-                return _LightColor0 * exp(-accumulatedDensity) * powderTerm(particleDensity);
+                return _LightColor0 * exp(-accumulatedDensity) * powderTerm(particleDensity) * hgScatterTerm;
             }
 
             inline float4 sampleCloudRay(float3 rayPos, float3 rayDir, int numSteps, float rayDistance)
@@ -192,6 +212,9 @@ Shader "Unlit/Clouds 1"
 
                 float4 accumulatedColor = float4(0, 0, 0, 0);
 
+                float cosScatterAngle = dot(_WorldSpaceLightPos0, rayDir);
+                float hgScatterTerm = henyeyGreensteinPhase(_ForwardScattering, cosScatterAngle) + henyeyGreensteinPhase(_BackwardScattering, cosScatterAngle);
+
                 for (int i = 0; i < numSteps; i++)
                 {
                     float particleDensity = sampleNoise(worldToCloudSpace(rayPos)).r * _Density * stepSize;
@@ -199,7 +222,7 @@ Shader "Unlit/Clouds 1"
                     // Only sample if particle can contribute to color
                     if (particleDensity > 0.01)
                     {
-                        float4 particleColor = float4(sampleCloudLight(rayPos, _ShadowSteps, _MarchDistance, particleDensity) * particleDensity, particleDensity);
+                        float4 particleColor = float4(sampleCloudLight(rayPos, _ShadowSteps, _MarchDistance, particleDensity, hgScatterTerm) * particleDensity, particleDensity);
 
                         // Alpha blend with particles in front of current particle
                         accumulatedColor += (1 - accumulatedColor.a) * particleColor;
