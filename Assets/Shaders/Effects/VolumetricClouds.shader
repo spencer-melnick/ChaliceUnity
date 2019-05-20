@@ -184,6 +184,10 @@ Shader "Unlit/Clouds 1"
                 float3 rayDir = _WorldSpaceLightPos0;
                 float3 rayStep = rayDir * stepSize;
 
+                #ifdef USE_TEMPORAL_JITTER
+                rayStep -= rayDir * stepSize * random(rayPos) * 0.5;
+                #endif
+
                 float accumulatedDensity = 0.0;
                 
                 // Integrate density function along line towards the sunlight
@@ -247,7 +251,7 @@ Shader "Unlit/Clouds 1"
 
 				#ifdef USE_TEMPORAL_JITTER
 				// Apply temporal jitter
-				viewRayPos -= input.viewDir * random(viewRayPos) * viewStepSize;
+				viewRayPos -= input.viewDir * random(viewRayPos) * viewStepSize * 0.5;
 				#else
 				// Snap to view planes
                 viewRayPos = snapToView(viewRayPos, viewRayDir, viewStepSize);
