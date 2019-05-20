@@ -20,6 +20,9 @@ Shader "Unlit/Clouds 1"
 
 		[Toggle(USE_TEMPORAL_JITTER)]
 		_UseJitter ("Use Temporal Jitter", float) = 0.0
+
+        [Toggle(USE_POWDER_EFFECT)]
+        _UsePowder ("Use Powder Effect", float) = 0.0
     }
     SubShader
     {
@@ -41,6 +44,7 @@ Shader "Unlit/Clouds 1"
 			#include "Lighting.cginc"
 
 			#pragma shader_feature USE_TEMPORAL_JITTER
+            #pragma shader_feature USE_POWDER_EFFECT
 
             struct appdata
             {
@@ -150,15 +154,22 @@ Shader "Unlit/Clouds 1"
                 float3 rayStep = rayDir * stepSize;
 
                 float accumulatedDensity = 0.0;
-
+                
+                // Integrate density function along line towards the sunlight
                 for (int i = 0; i < numSteps; i++)
                 {
-                    float sampleDensity = sampleNoise(worldToCloudSpace(rayPos)).r * stepSize * _ShadowDensity;
-                    accumulatedDensity += sampleDensity;
+                    float sampleDensity = sampleNoise(worldToCloudSpace(rayPos)).r * _ShadowDensity;
+                    accumulatedDensity += sampleDensity * stepSize;
+
+                    if (accumulatedDensity > 4)
+                    {
+                        break;
+                    }
 
                     rayPos += rayStep;
                 }
 
+                // Find light intensity using Beer's Law
                 return _LightColor0 * exp(-accumulatedDensity);
             }
 
@@ -167,23 +178,31 @@ Shader "Unlit/Clouds 1"
                 float stepSize = rayDistance / numSteps;
                 float3 rayStep = rayDir * stepSize;
 
-                float transmittance = 1.0;
-                float accumulatedDensity = 0.0;
-
-                float3 accumulatedLight = float3(0, 0, 0);
+                float4 accumulatedColor = float4(0, 0, 0, 0);
 
                 for (int i = 0; i < numSteps; i++)
                 {
-                    float sampleDensity = sampleNoise(worldToCloudSpace(rayPos)).r * stepSize * _Density;
-                    accumulatedDensity += sampleDensity;
+                    float sampleDensity = sampleNoise(worldToCloudSpace(rayPos)).r * _Density * stepSize;
 
-                    accumulatedLight += sampleCloudLight(rayPos, _ShadowSteps, _MarchDistance) * transmittance * sampleDensity;
+                    // Only sample if particle can contribute to color
+                    if (sampleDensity > 0.01)
+                    {
+                        float particleAlpha = sampleDensity;
+                        float4 particleColor = float4(sampleCloudLight(rayPos, _ShadowSteps, _MarchDistance) * particleAlpha, particleAlpha);
+
+                        // Alpha blend with particles in front of current particle
+                        accumulatedColor += (1 - accumulatedColor.a) * particleColor;
+                    }
 
                     rayPos += rayStep;
-                    transmittance *= (1 - sampleDensity);
+
+                    if (accumulatedColor.a > 0.99)
+                    {
+                        break;
+                    }
                 }
 
-                return float4(accumulatedLight / (1 - transmittance), 1 - transmittance);
+                return float4(accumulatedColor.rgb / accumulatedColor.a, accumulatedColor.a);
             }
 
 			fixed4 frag(vertOutput input) : SV_Target
