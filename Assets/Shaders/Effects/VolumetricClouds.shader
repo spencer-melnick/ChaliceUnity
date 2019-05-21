@@ -7,23 +7,34 @@ Shader "Unlit/Clouds 1"
     Properties
     {
         _NoiseTex ("Noise Texture", 3D) = "white" {}
+        _CoverageTex ("Coverage Texture", 2D) = "white" {}
+        _HeightGradientTex ("Height Gradient", 2D) = "white" {}
+
+        _LightScale ("Light Scale", Range(0.0, 5.0)) = 1.0
+        _AmbientScale ("Ambient Scale", Range(0.0, 5.0)) = 1.0
 
 		_NumSteps ("Raymarching Steps", Range(1, 300)) = 64
-        _MarchDistance ("Raymarch Distance", Range(0.0, 1000.0)) = 1.0
+        _MarchDistance ("Max Raymarch Distance", Range(0.0, 1000.0)) = 1.0
         _Density ("Density", Range(0.0, 20.0)) = 1.0
 
-		_ShadowDensity ("Shadow Density", Range(0.0, 20.0)) = 1.0
         _ShadowSteps ("Shadow Steps", Range(1, 300)) = 32
+        _ShadowDistance ("Shadow Distance", Range(0.0, 100.0)) = 2.0
+		_ShadowDensity ("Shadow Density", Range(0.0, 20.0)) = 1.0
+
+        _AmbientSteps ("Ambient Steps", Range(1, 10)) = 4
+        _AmbientDistance ("Ambient Distance", Range (0.0, 5.0)) = 0.1
 
         _Offset ("Cloud Center", Vector) = (0, 0, 0, 1)
         _Scale ("Cloud Size", Vector) = (1, 1, 1, 1)
+        _NoiseScale ("Noise Scale", Vector) = (10, 10, 10, 1)
+        _NoiseOffset ("Noise Offset", Vector) = (0, 0, 0, 1)
 
 		[Toggle(USE_TEMPORAL_JITTER)]
 		_UseJitter ("Use Temporal Jitter", float) = 0.0
 
         [Toggle(USE_POWDER_EFFECT)]
         _UsePowder ("Use Powder Effect", float) = 0.0
-        _PowderFactor ("Powder Factor", Range(0.0, 300.0)) = 10.0
+        _PowderFactor ("Powder Factor", Range(0.0, 30.0)) = 10.0
 
         [Toggle(USE_SCATTERING)]
         _UseScattering ("Use Forward Backward Scattering", float) = 0.0
@@ -70,6 +81,8 @@ Shader "Unlit/Clouds 1"
             };
 
             sampler3D _NoiseTex;
+            sampler2D _CoverageTex;
+            sampler2D _HeightGradientTex;
 			sampler2D _CameraDepthTexture;
             float4 _NoiseTex_ST;
 
@@ -78,12 +91,24 @@ Shader "Unlit/Clouds 1"
             //**********************
 
 			int _NumSteps;
-            int _ShadowSteps;
 			float _MarchDistance;
             float _Density;
+
+            float _LightScale;
+            float _AmbientScale;
+
+            int _ShadowSteps;
+            float _ShadowDistance;
 			float _ShadowDensity;
+
+            int _AmbientSteps;
+            float _AmbientDistance;
+
             float4 _Offset;
             float4 _Scale;
+
+            float4 _NoiseScale;
+            float4 _NoiseOffset;
 
             float _PowderFactor;
 
@@ -119,7 +144,18 @@ Shader "Unlit/Clouds 1"
 				return color;
             }
 
-			inline float4 sampleNoise(float3 coord)
+            inline float remap(float value, float oldMin, float oldMax, float newMin, float newMax)
+            {
+                value -= oldMin;
+                value /= (oldMax - oldMin);
+                // value = saturate(value);
+                value *= (newMax - newMin);
+                value += newMin;
+
+                return value;
+            }
+
+			inline float4 sampleNoise(float3 coord, float3 worldCoord)
 			{
 				float4 color = float4(0, 0, 0, 0);
 
@@ -127,9 +163,14 @@ Shader "Unlit/Clouds 1"
                 coord += float4(0.5, 0.5, 0.5, 0);
 
                 // Bound noise to cloud region
-                if (coord.x > 0 && coord.y > 0 && coord.z > 0 && coord.x < 1 && coord.y < 1 && coord.z < 1)
+                if (coord.y > 0 && coord.y < 1)
                 {
-    				color = tex3Dlod(_NoiseTex, float4(coord, 1));
+    				float density = tex3Dlod(_NoiseTex, float4((worldCoord - _NoiseOffset.xyz) / _NoiseScale.xyz , 0)).r;
+                    float coverage = 1 - tex2Dlod(_CoverageTex, float4(coord.xz, 0, 1)).r;
+                    float heightGrade = tex2Dlod(_HeightGradientTex, float4(0.5, coord.y, 0, 1)).r;
+                    density = remap(density * heightGrade, coverage, 1.0, 0.0, 1.0);
+
+                    color.rgba = max(density, 0.0);
                 }
 
 				return color;
@@ -146,8 +187,36 @@ Shader "Unlit/Clouds 1"
 
 			// Pseudorandom function from https://thebookofshaders.com/10
 			inline float random(float3 st) {
-				return frac(sin(dot(st.xy, float3(12.9898, 78.233, 63.5962))) *	43758.5453123);
+				return frac(sin(dot(st.xyz, float3(12.9898, 78.233, 63.5962))) *	43758.5453123);
 			}
+
+            inline float randomExtra(float3 st, float extra)
+            {
+                return frac(sin(dot(float4(st.xyz, extra), float4(12.9898, 78.233, 63.5962, extra))) * 43758.5453123);
+            }
+
+            inline float3 randomSpherePoint(float3 pos, float extra)
+            {
+                float3 sphere = float3(0, 0, 0);
+
+                sphere.x = randomExtra(pos, 175.2235 * extra);
+                sphere.y = abs(randomExtra(pos, 43.7853 * extra));
+                sphere.z = randomExtra(pos, 4.5561 * extra);
+
+                return normalize(sphere);
+            }
+
+            inline float rayPlaneDistance(float3 rayOrigin, float3 rayDir, float3 planeNormal, float planeOffset)
+            {
+                float projectedRayOrigin = dot(planeNormal, rayOrigin);
+                float projectedRayStep = dot(planeNormal, rayDir);
+                return (planeOffset - projectedRayOrigin) / projectedRayStep;
+            }
+
+            inline float3 rayPlaneIntersection(float3 rayOrigin, float3 rayDir, float3 planeNormal, float planeOffset)
+            {
+                return rayOrigin + rayDir * rayPlaneDistance(rayOrigin, rayDir, planeNormal, planeOffset);
+            }
 
             // Used to align rays along view planes
             inline float3 snapToView(float3 position, float3 viewDir, float increments)
@@ -193,7 +262,7 @@ Shader "Unlit/Clouds 1"
                 // Integrate density function along line towards the sunlight
                 for (int i = 0; i < numSteps; i++)
                 {
-                    float sampleDensity = sampleNoise(worldToCloudSpace(rayPos)).r * _ShadowDensity;
+                    float sampleDensity = sampleNoise(worldToCloudSpace(rayPos), rayPos).r * _ShadowDensity;
                     accumulatedDensity += sampleDensity * stepSize;
 
                     // If little light can penetrate at this point, stop
@@ -205,8 +274,19 @@ Shader "Unlit/Clouds 1"
                     rayPos += rayStep;
                 }
 
+                float ambientDensity = 0.0;
+                float ambientStepDistance = _AmbientDistance / _AmbientSteps;
+
+                for (int j = 0; j < _AmbientSteps; j++)
+                {
+                    float3 offset = rayPos + randomSpherePoint(rayPos, j) * ambientStepDistance * j;
+                    ambientDensity += sampleNoise(worldToCloudSpace(offset), offset).r * _ShadowDensity;
+                }
+
                 // Find light intensity using Beer's Law
-                return _LightColor0 * exp(-accumulatedDensity) * powderTerm(particleDensity) * hgScatterTerm;
+                float3 directLight = _LightColor0 * exp(-accumulatedDensity) * powderTerm(particleDensity) * hgScatterTerm;
+                float3 ambientTerm = unity_AmbientSky * exp(-ambientDensity);
+                return  directLight * _LightScale + ambientTerm * _AmbientScale;
             }
 
             inline float4 sampleCloudRay(float3 rayPos, float3 rayDir, int numSteps, float rayDistance)
@@ -221,12 +301,12 @@ Shader "Unlit/Clouds 1"
 
                 for (int i = 0; i < numSteps; i++)
                 {
-                    float particleDensity = sampleNoise(worldToCloudSpace(rayPos)).r * _Density * stepSize;
+                    float particleDensity = sampleNoise(worldToCloudSpace(rayPos), rayPos).r * _Density * stepSize;
 
                     // Only sample if particle can contribute to color
                     if (particleDensity > 0.01)
                     {
-                        float4 particleColor = float4(sampleCloudLight(rayPos, _ShadowSteps, _MarchDistance, particleDensity, hgScatterTerm) * particleDensity, particleDensity);
+                        float4 particleColor = float4(sampleCloudLight(rayPos, _ShadowSteps, _ShadowDistance, particleDensity, hgScatterTerm) * particleDensity, particleDensity);
 
                         // Alpha blend with particles in front of current particle
                         accumulatedColor += (1 - accumulatedColor.a) * particleColor;
@@ -245,9 +325,27 @@ Shader "Unlit/Clouds 1"
 
 			fixed4 frag(vertOutput input) : SV_Target
 			{
-                float viewStepSize = _MarchDistance / _NumSteps;
 				float3 viewRayPos = input.worldPos;
 				float3 viewRayDir = normalize(input.viewDir);
+
+                float cloudBaseHeight = _Offset.y - _Scale.y / 2.0;
+                float cloudTopHeight = _Offset.y + _Scale.y / 2.0;
+
+                float marchDistance = _MarchDistance;
+
+                // Snap ray to cloud base plane
+                if (viewRayPos.y < cloudBaseHeight)
+                {
+                    viewRayPos = rayPlaneIntersection(viewRayPos, viewRayDir, float3(0, 1, 0), cloudBaseHeight);
+                    marchDistance = min(rayPlaneDistance(viewRayPos, viewRayDir, float3(0, 1, 0), cloudTopHeight), marchDistance);
+                }
+                else if (viewRayPos.y > cloudTopHeight)
+                {
+                    viewRayPos = rayPlaneIntersection(viewRayPos, viewRayDir, float3(0, 1, 0), cloudTopHeight);
+                    marchDistance = min(rayPlaneDistance(viewRayPos, viewRayDir, float3(0, 1, 0), cloudBaseHeight), marchDistance);
+                }
+
+                float viewStepSize = marchDistance / _NumSteps;
 
 				#ifdef USE_TEMPORAL_JITTER
 				// Apply temporal jitter
@@ -263,12 +361,13 @@ Shader "Unlit/Clouds 1"
 
 				float currentDepth = dot(viewRayDir, viewRayPos - _WorldSpaceCameraPos);
 				float travelDepth = screenDepth - currentDepth;
+                marchDistance = min(marchDistance, travelDepth);
 
 				// Limit steps by travel distance
 				int numSteps = min(_NumSteps, travelDepth / viewStepSize);
-				viewStepSize = min(_MarchDistance, travelDepth) / numSteps;
+				viewStepSize = marchDistance / numSteps;
 
-				fixed4 color = sampleCloudRay(viewRayPos, viewRayDir, numSteps, min(_MarchDistance, travelDepth));
+				fixed4 color = saturate(sampleCloudRay(viewRayPos, viewRayDir, numSteps, marchDistance));
             
                 // apply fog
                 UNITY_APPLY_FOG(input.fogCoord, color);
