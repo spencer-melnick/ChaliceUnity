@@ -210,6 +210,7 @@ Shader "Unlit/Clouds 1"
 			}
 
 			// Pseudorandom function from https://thebookofshaders.com/10
+            // TODO: Possible replace with noise texture lookup for faster randoms
 			inline float random(float3 st) {
 				return frac(sin(dot(st.xyz, float3(12.9898, 78.233, 63.5962))) *	43758.5453123);
 			}
@@ -273,12 +274,14 @@ Shader "Unlit/Clouds 1"
 
             inline float3 sampleCloudLight(float3 rayPos, int numSteps, float rayDistance, float particleDensity, float hgScatterTerm)
             {
+                // TODO: Snap ray distances to end of cloud volume?
+
                 float stepSize = rayDistance / numSteps;
                 float3 rayDir = _WorldSpaceLightPos0;
                 float3 rayStep = rayDir * stepSize;
 
                 #ifdef USE_TEMPORAL_JITTER
-                rayStep -= rayDir * stepSize * random(rayPos) * 0.5;
+                rayStep += (abs(random(rayPos)) - 0.5) * rayStep;
                 #endif
 
                 float accumulatedDensity = 0.0;
@@ -311,6 +314,11 @@ Shader "Unlit/Clouds 1"
             {
                 float stepSize = rayDistance / numSteps;
                 float3 rayStep = rayDir * stepSize;
+
+                #ifdef USE_TEMPORAL_JITTER
+				// Apply temporal jitter
+				rayPos += (abs(random(rayPos)) - 0.5) * rayStep;
+				#endif
 
                 float4 accumulatedColor = float4(0, 0, 0, 0);
 
@@ -369,13 +377,8 @@ Shader "Unlit/Clouds 1"
 
                 float viewStepSize = marchDistance / _NumSteps;
 
-				#ifdef USE_TEMPORAL_JITTER
-				// Apply temporal jitter
-				viewRayPos -= input.viewDir * random(viewRayPos) * viewStepSize * 0.5;
-				#else
-				// Snap to view planes
+                // Snap to view planes
                 viewRayPos = snapToView(viewRayPos, viewRayDir, viewStepSize);
-				#endif
 
 				// Calculate max depth
 				float screenDepth = SAMPLE_DEPTH_TEXTURE_PROJ(_CameraDepthTexture, UNITY_PROJ_COORD(input.screenPos));

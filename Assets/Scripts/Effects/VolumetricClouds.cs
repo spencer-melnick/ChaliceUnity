@@ -6,34 +6,23 @@ using UnityEditor;
 [ExecuteAlways]
 public class VolumetricClouds : MonoBehaviour
 {
-    private void Start()
-    {
-        Camera.main.depthTextureMode |= DepthTextureMode.Depth;
-    }
+    public Vector4 scrollSpeed = new Vector4(0.5f, 0.0f, 0.0f, 0.0f);
 
-    private void OnEnable()
-    {
-        // Camera.onPreRender += EnableDepthTexture;
-    }
+    private Material _material;
 
-    private void OnDisable()
+    private void Update()
     {
-        // Camera.onPreRender -= EnableDepthTexture;
-    }
+        _material = GetComponent<Renderer>().sharedMaterial;
 
-    void EnableDepthTexture(Camera camera)
-    {
-        camera.depthTextureMode |= DepthTextureMode.Depth;
-    }
+        Vector4 noiseOffset = _material.GetVector("_NoiseOffset");
+        Vector4 noiseScale = _material.GetVector("_NoiseScale");
+        noiseOffset += scrollSpeed * Time.deltaTime;
 
-    void UpdateMVP(Camera camera)
-    {
-        Matrix4x4 m = transform.GetComponent<Renderer>().localToWorldMatrix;
-        Matrix4x4 v = camera.worldToCameraMatrix;
-        Matrix4x4 p = GL.GetGPUProjectionMatrix(camera.projectionMatrix, true);
-        Matrix4x4 mvp = p * v * m;
-        Matrix4x4 inverseMvp = mvp.inverse;
-        GetComponent<Renderer>().sharedMaterial.SetMatrix("_MVP", mvp);
-        GetComponent<Renderer>().sharedMaterial.SetMatrix("_InverseMVP", inverseMvp);
+        noiseOffset.x %= noiseScale.x;
+        noiseOffset.y %= noiseScale.y;
+        noiseOffset.z %= noiseScale.z;
+        noiseOffset.w %= noiseScale.w;
+
+        _material.SetVector("_NoiseOffset", noiseOffset);
     }
 }

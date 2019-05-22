@@ -117,6 +117,11 @@ public class NoiseGenerator : MonoBehaviour
             previewPixels[i].a = 1.0f;
         }
 
+        if (previewTexture == null)
+        {
+            previewTexture = new Texture2D(previewResolution.x, previewResolution.y, TextureFormat.ARGB32, true);
+        }
+
         previewTexture.SetPixels(previewPixels);
         previewTexture.Apply();
 }

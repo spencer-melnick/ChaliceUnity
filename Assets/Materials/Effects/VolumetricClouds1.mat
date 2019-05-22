@@ -9,7 +9,7 @@ Material:
   m_PrefabAsset: {fileID: 0}
   m_Name: VolumetricClouds1
   m_Shader: {fileID: 4800000, guid: fbb5e24273211634594fb9d7f585ee95, type: 3}
-  m_ShaderKeywords: 
+  m_ShaderKeywords: USE_POWDER_EFFECT USE_SCATTERING
   m_LightmapFlags: 4
   m_EnableInstancingVariants: 0
   m_DoubleSidedGI: 0
@@ -21,6 +21,10 @@ Material:
     m_TexEnvs:
     - _BumpMap:
         m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _CoverageTex:
+        m_Texture: {fileID: 2800000, guid: 50606e6bd2f92dc4ca36a4807bbfbf7d, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _DetailAlbedoMap:
@@ -37,6 +41,10 @@ Material:
         m_Offset: {x: 0, y: 0}
     - _EmissionMap:
         m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _HeightGradientTex:
+        m_Texture: {fileID: 2800000, guid: b8f5157f5c9def94a8d30f47a1420a62, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _MainTex:
@@ -60,28 +68,45 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     m_Floats:
+    - _AmbientScale: 0.9
+    - _BackwardScattering: -0.1
     - _BumpScale: 1
+    - _CloudDistance: 500
     - _Contrast: 6.96
     - _Cutoff: 0.5
-    - _Density: 1.21
+    - _Density: 0.82
     - _DetailNormalMapScale: 1
     - _DstBlend: 0
+    - _ForwardScattering: 0.1
     - _GlossMapScale: 1
     - _Glossiness: 0.5
     - _GlossyReflections: 1
-    - _MarchDistance: 3
+    - _LightScale: 0.9
+    - _MarchDistance: 70
     - _Metallic: 0
     - _Mode: 0
-    - _NumSteps: 200
+    - _NumSteps: 32
     - _OcclusionStrength: 1
     - _Parallax: 0.02
+    - _PowderFactor: 17.1
+    - _ShadowDensity: 0.1
+    - _ShadowDistance: 20
+    - _ShadowSteps: 6
     - _SmoothnessTextureChannel: 0
     - _SpecularHighlights: 1
     - _SrcBlend: 1
+    - _TileClouds: 0
     - _UVSec: 0
+    - _UseJitter: 0
+    - _UsePowder: 1
+    - _UseScattering: 1
     - _ZWrite: 1
     m_Colors:
+    - _CloudOffset: {r: 0, g: 30, b: 0, a: 1}
+    - _CloudScale: {r: 1000, g: 30, b: 1000, a: 1}
     - _Color: {r: 1, g: 1, b: 1, a: 1}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
+    - _NoiseOffset: {r: 20.767262, g: 0, b: 0, a: 0}
+    - _NoiseScale: {r: 50, g: 50, b: 50, a: 1}
     - _Offset: {r: 0, g: 0, b: 0, a: 1}
     - _Scale: {r: 2, g: 2, b: 2, a: 1}
