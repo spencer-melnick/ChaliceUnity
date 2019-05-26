@@ -87,10 +87,19 @@ public class VolumetricCloudRenderer : MonoBehaviour
         // Z coordinate corresponds to the frustum vector index
 
         GL.Begin(GL.QUADS);
+
+        GL.MultiTexCoord2(0, 0, 1);
         GL.Vertex3(-1, -1, 0);
+
+        GL.MultiTexCoord2(0, 1, 1);
         GL.Vertex3(1, -1, 1);
+
+        GL.MultiTexCoord2(0, 1, 0);
         GL.Vertex3(1, 1, 2);
+
+        GL.MultiTexCoord2(0, 0, 0);
         GL.Vertex3(-1, 1, 3);
+
         GL.End();
 
         GL.PopMatrix();

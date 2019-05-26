@@ -71,16 +71,16 @@ Shader "Unlit/Clouds"
             struct appdata
             {
                 float4 vertex : POSITION;
+                float2 uv : TEXCOORD0;
             };
 
             struct vertOutput
             {
                 float4 position : POSITION;
+                float2 uv : TEXCOORD0;
                 UNITY_FOG_COORDS(1)
 
-				float3 worldPos : POSITION1;
-				float3 viewDir : POSITION2;
-				float4 screenPos : POSITION3;
+				float3 viewDir : POSITION1;
             };
 
             sampler3D _NoiseTex;
@@ -127,13 +127,13 @@ Shader "Unlit/Clouds"
                 vertOutput output;
 
 				int cornerIndex = v.vertex.z;
-
 				v.vertex.z = 0;
-                output.position = v.vertex;
-				output.worldPos = mul(_InverseView, v.vertex);
 
-				output.screenPos = ComputeScreenPos(output.position);
-				output.viewDir = mul(_InverseView, _FrustumCorners[cornerIndex]);
+                output.position = v.vertex;
+                output.uv = v.uv;
+
+				output.viewDir = _FrustumCorners[cornerIndex];
+                output.viewDir = mul(_InverseView, output.viewDir);
 
                 UNITY_TRANSFER_FOG(output, output.vertex);
 
@@ -356,55 +356,66 @@ Shader "Unlit/Clouds"
 			{
 				// return fixed4(input.viewDir.xyz, 1.0);
 
-				float3 viewRayPos = _CameraPosition;
-				float3 viewRayDir = normalize(input.viewDir);
+				float3 rayPos = _CameraPosition;
+				float3 rayDir = normalize(input.viewDir);
 
                 float cloudBaseHeight = _CloudOffset.y - _CloudScale.y / 2.0;
                 float cloudTopHeight = _CloudOffset.y + _CloudScale.y / 2.0;
 
                 float marchDistance = _MarchDistance;
 
-				/*
+				
                 // Snap ray to cloud base plane
-                if (viewRayPos.y < cloudBaseHeight)
+                if (rayPos.y < cloudBaseHeight && rayDir.y > 0)
                 {
-                    viewRayPos = rayPlaneIntersection(viewRayPos, viewRayDir, float3(0, 1, 0), cloudBaseHeight);
-                    marchDistance = min(rayPlaneDistance(viewRayPos, viewRayDir, float3(0, 1, 0), cloudTopHeight), marchDistance);
+                    rayPos = rayPlaneIntersection(rayPos, rayDir, float3(0, 1, 0), cloudBaseHeight);
+                    marchDistance = min(rayPlaneDistance(rayPos, rayDir, float3(0, 1, 0), cloudTopHeight), marchDistance);
                 }
-                else if (viewRayPos.y > cloudTopHeight)
+                else if (rayPos.y > cloudTopHeight && rayDir.y < 0)
                 {
-                    viewRayPos = rayPlaneIntersection(viewRayPos, viewRayDir, float3(0, 1, 0), cloudTopHeight);
-                    marchDistance = min(rayPlaneDistance(viewRayPos, viewRayDir, float3(0, 1, 0), cloudBaseHeight), marchDistance);
+                    rayPos = rayPlaneIntersection(rayPos, rayDir, float3(0, 1, 0), cloudTopHeight);
+                    marchDistance = min(rayPlaneDistance(rayPos, rayDir, float3(0, 1, 0), cloudBaseHeight), marchDistance);
                 }
 
-                if (length(viewRayPos.xz - _WorldSpaceCameraPos.xz) > _CloudDistance)
+                /* if (length(rayPos.xz - _WorldSpaceCameraPos.xz) > _CloudDistance)
                 {
                     return half4(0, 0, 0, 0);
-                }*/
+                }
+				*/
 
                 float viewStepSize = marchDistance / _NumSteps;
 
                 // Snap to view planes
-                // viewRayPos = snapToView(viewRayPos, viewRayDir, viewStepSize);
+                // rayPos = snapToView(rayPos, rayDir, viewStepSize);
 
 				// Calculate max depth
-				// float screenDepth = SAMPLE_DEPTH_TEXTURE_PROJ(_CameraDepthTexture, UNITY_PROJ_COORD(input.screenPos));
-				// screenDepth = LinearEyeDepth(screenDepth);
+				float screenDepth = tex2D(_CameraDepthTexture, input.uv);
+                screenDepth = LinearEyeDepth(screenDepth);
 
-				// float currentDepth = dot(viewRayDir, viewRayPos - _WorldSpaceCameraPos);
-				// float travelDepth = screenDepth - currentDepth;
-                // marchDistance = min(marchDistance, travelDepth);
+                float rayDepth = dot(rayPos, rayDir) - dot(_CameraPosition, rayDir);
+
+                // fixed4 debugColor = fixed4(0, 0, 0, 1);
+                // debugColor.rgb = min(rayDepth, screenDepth) / 10;
+                // // debugColor.rgb = rayPos / 5;
+                // return debugColor;
+
+                if (rayDepth > screenDepth)
+                {
+                    return fixed4(0, 0, 0, 0);
+                }
+
+                marchDistance = min(marchDistance, screenDepth - rayDepth);
 
 				// Limit steps by travel distance
-				int numSteps = _NumSteps; //min(_NumSteps, travelDepth / viewStepSize);
+				int numSteps = min(_NumSteps, screenDepth / viewStepSize);
 				viewStepSize = marchDistance / numSteps;
 
-				fixed4 color = saturate(sampleCloudRay(viewRayPos, viewRayDir, numSteps, marchDistance));
+				fixed4 color = saturate(sampleCloudRay(rayPos, rayDir, numSteps, marchDistance));
             
                 // apply fog
                 UNITY_APPLY_FOG(input.fogCoord, color);
+
                 return color;
-				//return fixed4(input.worldPos.xyz, 1.0);
             }
 
 
