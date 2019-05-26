@@ -1,8 +1,10 @@
-﻿// TODO:
+﻿// Upgrade NOTE: replaced 'mul(UNITY_MATRIX_MVP,*)' with 'UnityObjectToClipPos(*)'
+
+// TODO:
 // Snap ray start and end to cloud volume bounds
 // Add lighting
 
-Shader "Unlit/Clouds 1"
+Shader "Unlit/Clouds"
 {
     Properties
     {
@@ -44,7 +46,7 @@ Shader "Unlit/Clouds 1"
     }
     SubShader
     {
-        ZTest On Cull Back ZWrite Off
+        ZTest Off Cull Back ZWrite Off
 		Blend SrcAlpha OneMinusSrcAlpha
         Tags { "Queue" = "Transparent" }
         LOD 100
@@ -76,10 +78,9 @@ Shader "Unlit/Clouds 1"
                 float4 position : POSITION;
                 UNITY_FOG_COORDS(1)
 
-				float4 worldPos : POSITION1;
-				float4 localPos : POSITION2;
-                float4 screenPos : POSITION3;
-				float3 viewDir : POSITION4;
+				float3 worldPos : POSITION1;
+				float3 viewDir : POSITION2;
+				float4 screenPos : POSITION3;
             };
 
             sampler3D _NoiseTex;
@@ -117,19 +118,22 @@ Shader "Unlit/Clouds 1"
 
             // Loaded matrices
 
-            // float4x4 _MVP;
-            // float4x4 _InverseMVP;
+			float4x4 _FrustumCorners;
+			float4x4 _InverseView;
+			float4 _CameraPosition;
 
             vertOutput vert (appdata v)
             {
                 vertOutput output;
 
-                output.position = UnityObjectToClipPos(v.vertex);
-				output.worldPos = mul(unity_ObjectToWorld, v.vertex);
-				output.localPos = v.vertex;
+				int cornerIndex = v.vertex.z;
+
+				v.vertex.z = 0;
+                output.position = v.vertex;
+				output.worldPos = mul(_InverseView, v.vertex);
 
 				output.screenPos = ComputeScreenPos(output.position);
-                output.viewDir = -UnityWorldSpaceViewDir(output.worldPos);
+				output.viewDir = mul(_InverseView, _FrustumCorners[cornerIndex]);
 
                 UNITY_TRANSFER_FOG(output, output.vertex);
 
@@ -350,7 +354,9 @@ Shader "Unlit/Clouds 1"
 
 			fixed4 frag(vertOutput input) : SV_Target
 			{
-				float3 viewRayPos = input.worldPos;
+				// return fixed4(input.viewDir.xyz, 1.0);
+
+				float3 viewRayPos = _CameraPosition;
 				float3 viewRayDir = normalize(input.viewDir);
 
                 float cloudBaseHeight = _CloudOffset.y - _CloudScale.y / 2.0;
@@ -358,6 +364,7 @@ Shader "Unlit/Clouds 1"
 
                 float marchDistance = _MarchDistance;
 
+				/*
                 // Snap ray to cloud base plane
                 if (viewRayPos.y < cloudBaseHeight)
                 {
@@ -373,23 +380,23 @@ Shader "Unlit/Clouds 1"
                 if (length(viewRayPos.xz - _WorldSpaceCameraPos.xz) > _CloudDistance)
                 {
                     return half4(0, 0, 0, 0);
-                }
+                }*/
 
                 float viewStepSize = marchDistance / _NumSteps;
 
                 // Snap to view planes
-                viewRayPos = snapToView(viewRayPos, viewRayDir, viewStepSize);
+                // viewRayPos = snapToView(viewRayPos, viewRayDir, viewStepSize);
 
 				// Calculate max depth
-				float screenDepth = SAMPLE_DEPTH_TEXTURE_PROJ(_CameraDepthTexture, UNITY_PROJ_COORD(input.screenPos));
-				screenDepth = LinearEyeDepth(screenDepth);
+				// float screenDepth = SAMPLE_DEPTH_TEXTURE_PROJ(_CameraDepthTexture, UNITY_PROJ_COORD(input.screenPos));
+				// screenDepth = LinearEyeDepth(screenDepth);
 
-				float currentDepth = dot(viewRayDir, viewRayPos - _WorldSpaceCameraPos);
-				float travelDepth = screenDepth - currentDepth;
-                marchDistance = min(marchDistance, travelDepth);
+				// float currentDepth = dot(viewRayDir, viewRayPos - _WorldSpaceCameraPos);
+				// float travelDepth = screenDepth - currentDepth;
+                // marchDistance = min(marchDistance, travelDepth);
 
 				// Limit steps by travel distance
-				int numSteps = min(_NumSteps, travelDepth / viewStepSize);
+				int numSteps = _NumSteps; //min(_NumSteps, travelDepth / viewStepSize);
 				viewStepSize = marchDistance / numSteps;
 
 				fixed4 color = saturate(sampleCloudRay(viewRayPos, viewRayDir, numSteps, marchDistance));
@@ -397,6 +404,7 @@ Shader "Unlit/Clouds 1"
                 // apply fog
                 UNITY_APPLY_FOG(input.fogCoord, color);
                 return color;
+				//return fixed4(input.worldPos.xyz, 1.0);
             }
 
 
