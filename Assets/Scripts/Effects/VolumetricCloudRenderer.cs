@@ -6,15 +6,24 @@ using UnityEditor;
 [ImageEffectAllowedInSceneView, ExecuteAlways]
 public class VolumetricCloudRenderer : MonoBehaviour
 {
-    public float renderScale = 1.0f;
+    public enum RenderScale
+    {
+        Full = 1,
+        Half = 2,
+        Quarter = 4
+    }
+
+    public RenderScale renderScale = RenderScale.Full;
 
     public Material material;
 
+    private Material _downsampleMaterial;
     private Material _blendMaterial;
 
-    private void OnEnable()
+    private void Awake()
     {
         material = new Material(Shader.Find("Unlit/Clouds"));
+        _downsampleMaterial = new Material(Shader.Find("Hidden/DownsampleTexture"));
         _blendMaterial = new Material(Shader.Find("Hidden/OverlayEffect"));
     }
 
@@ -27,11 +36,19 @@ public class VolumetricCloudRenderer : MonoBehaviour
     [ImageEffectOpaque]
     private void OnRenderImage(RenderTexture source, RenderTexture destination)
     {
-        int textureWidth = Mathf.FloorToInt(Screen.width * renderScale);
-        int textureHeight = Mathf.FloorToInt(Screen.height * renderScale);
+        int textureWidth = Mathf.FloorToInt(Screen.width / (float)renderScale);
+        int textureHeight = Mathf.FloorToInt(Screen.height / (float)renderScale);
 
-        RenderTexture renderTexture = RenderTexture.GetTemporary(textureWidth, textureHeight);
-        Graphics.SetRenderTarget(renderTexture);
+        RenderTexture sceneDepthTexture = RenderTexture.GetTemporary(textureWidth, textureHeight, 0);
+        _downsampleMaterial.SetVector("_Resolution", new Vector4(Screen.width, Screen.height, 0, 0));
+        _downsampleMaterial.SetInt("_NumSamples", (int)renderScale);
+        Graphics.Blit(source, sceneDepthTexture, _downsampleMaterial);
+
+        RenderTexture cloudColorTexture = RenderTexture.GetTemporary(textureWidth, textureHeight, 0, RenderTextureFormat.Default);
+        RenderTexture cloudDepthTexture = RenderTexture.GetTemporary(textureWidth, textureHeight, 16, RenderTextureFormat.Depth);
+        Graphics.SetRenderTarget(cloudColorTexture.colorBuffer, cloudDepthTexture.depthBuffer);
+
+        Shader.SetGlobalTexture("_CameraDepthTextureLowRes", sceneDepthTexture);
 
         Matrix4x4 frustumCorners = GetFrustumCorners(Camera.current);
         Matrix4x4 inverseViewMatrix = Camera.current.cameraToWorldMatrix;
@@ -42,13 +59,16 @@ public class VolumetricCloudRenderer : MonoBehaviour
         material.SetPass(0);
 
         DrawFullscreenQuad();
+        sceneDepthTexture.Release();
 
-        _blendMaterial.SetTexture("_SecondTex", renderTexture);
+        _blendMaterial.SetTexture("_SecondTex", cloudColorTexture);
+        _blendMaterial.SetTexture("_SecondDepth", cloudDepthTexture);
 
         Graphics.SetRenderTarget(destination);
         Graphics.Blit(source, destination, _blendMaterial);
         
-        renderTexture.Release();
+        cloudColorTexture.Release();
+        cloudDepthTexture.Release();
     }
 
     // Frustrum corners from https://flafla2.github.io/2016/10/01/raymarching.html

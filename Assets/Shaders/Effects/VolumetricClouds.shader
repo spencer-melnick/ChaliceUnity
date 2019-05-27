@@ -46,7 +46,7 @@ Shader "Unlit/Clouds"
     }
     SubShader
     {
-        ZTest Off Cull Back ZWrite Off
+        ZTest Off Cull Back ZWrite On
 		Blend SrcAlpha OneMinusSrcAlpha
         Tags { "Queue" = "Transparent" }
         LOD 100
@@ -87,6 +87,7 @@ Shader "Unlit/Clouds"
             sampler2D _CoverageTex;
             sampler2D _HeightGradientTex;
 			sampler2D _CameraDepthTexture;
+            sampler2D _CameraDepthTextureLowRes;
             float4 _NoiseTex_ST;
 
             //**********************
@@ -141,7 +142,11 @@ Shader "Unlit/Clouds"
             }
 
 
-			// Begin program
+			inline float LinearEyeDepthToOutDepth(float z)
+            {
+                return (1 - _ZBufferParams.w * z) / (_ZBufferParams.z * z);
+            }
+
 
             inline float AdjustContrast(float color, float contrast) {
                 //return saturate(lerp(0.5, color, contrast));
@@ -314,10 +319,13 @@ Shader "Unlit/Clouds"
                 return  directLight * _LightScale + ambientTerm * _AmbientScale;
             }
 
-            inline float4 sampleCloudRay(float3 rayPos, float3 rayDir, int numSteps, float rayDistance)
+            inline float4 sampleCloudRay(float3 rayPos, float3 rayDir, int numSteps, float rayDistance, float cameraDepth, out float depth)
             {
                 float stepSize = rayDistance / numSteps;
                 float3 rayStep = rayDir * stepSize;
+
+                int intersectFound = 0;
+                depth = _ProjectionParams.z;
 
                 #ifdef USE_TEMPORAL_JITTER
 				// Apply temporal jitter
@@ -334,6 +342,12 @@ Shader "Unlit/Clouds"
                     // Only sample if particle can contribute to color
                     if (sampleNoiseCheap(rayPos) > 0.01)
                     {
+                        if (!intersectFound)
+                        {
+                            intersectFound = 1;
+                            depth = dot(rayPos, rayDir) - cameraDepth;
+                        }
+
                         float particleDensity = sampleNoise(rayPos) * _Density * stepSize;
                         float4 particleColor = float4(sampleCloudLight(rayPos, _ShadowSteps, _ShadowDistance, particleDensity, hgScatterTerm) * particleDensity, particleDensity);
 
@@ -352,7 +366,7 @@ Shader "Unlit/Clouds"
                 return float4(accumulatedColor.rgb / accumulatedColor.a, accumulatedColor.a);
             }
 
-			fixed4 frag(vertOutput input) : SV_Target
+			fixed4 frag(vertOutput input, out float depth : SV_DEPTH) : SV_Target
 			{
 				// return fixed4(input.viewDir.xyz, 1.0);
 
@@ -389,10 +403,11 @@ Shader "Unlit/Clouds"
                 // rayPos = snapToView(rayPos, rayDir, viewStepSize);
 
 				// Calculate max depth
-				float screenDepth = tex2D(_CameraDepthTexture, input.uv);
+				float screenDepth = DecodeFloatRGBA(tex2D(_CameraDepthTextureLowRes, input.uv));
                 screenDepth = LinearEyeDepth(screenDepth);
 
-                float rayDepth = dot(rayPos, rayDir) - dot(_CameraPosition, rayDir);
+                float cameraDepth = dot(_CameraPosition, rayDir);
+                float rayDepth = dot(rayPos, rayDir) - cameraDepth;
 
                 // fixed4 debugColor = fixed4(0, 0, 0, 1);
                 // debugColor.rgb = min(rayDepth, screenDepth) / 10;
@@ -401,6 +416,7 @@ Shader "Unlit/Clouds"
 
                 if (rayDepth > screenDepth)
                 {
+                    depth = 0;
                     return fixed4(0, 0, 0, 0);
                 }
 
@@ -410,7 +426,10 @@ Shader "Unlit/Clouds"
 				int numSteps = min(_NumSteps, screenDepth / viewStepSize);
 				viewStepSize = marchDistance / numSteps;
 
-				fixed4 color = saturate(sampleCloudRay(rayPos, rayDir, numSteps, marchDistance));
+                float linearDepth;
+				fixed4 color = saturate(sampleCloudRay(rayPos, rayDir, numSteps, marchDistance, cameraDepth, linearDepth));
+
+                depth = LinearEyeDepthToOutDepth(linearDepth);
             
                 // apply fog
                 UNITY_APPLY_FOG(input.fogCoord, color);

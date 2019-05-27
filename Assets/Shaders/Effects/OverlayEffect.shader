@@ -39,10 +39,28 @@
 
             sampler2D _MainTex;
 			sampler2D _SecondTex;
+            sampler2D _SecondDepth;
+            sampler2D _CameraDepthTexture;
+            sampler2D _CameraDepthTextureLowRes;
 
             fixed4 frag (v2f i) : SV_Target
             {
                 fixed4 dest = tex2D(_MainTex, i.uv);
+
+                float destDepth = SAMPLE_DEPTH_TEXTURE(_CameraDepthTexture, i.uv);
+                float srcDepth = SAMPLE_DEPTH_TEXTURE(_SecondDepth, i.uv);
+
+                // fixed4 testColor;
+                // testColor.rgb = min(srcDepth, destDepth) / 10;
+                // testColor.a = 1;
+
+                // return testColor;
+
+                if (destDepth > srcDepth)
+                {
+                    return dest;
+                }
+
 				fixed4 src = tex2D(_SecondTex, i.uv);
 
 				return dest * (1.0 - src.a) + src * src.a;
