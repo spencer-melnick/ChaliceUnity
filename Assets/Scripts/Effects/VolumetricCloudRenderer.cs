@@ -23,8 +23,8 @@ public class VolumetricCloudRenderer : MonoBehaviour
     private void Awake()
     {
         material = new Material(Shader.Find("Unlit/Clouds"));
-        _downsampleMaterial = new Material(Shader.Find("Hidden/DownsampleTexture"));
-        _blendMaterial = new Material(Shader.Find("Hidden/OverlayEffect"));
+        _downsampleMaterial = new Material(Shader.Find("Hidden/DownsampleDepth"));
+        _blendMaterial = new Material(Shader.Find("Hidden/OverlayDepth"));
     }
 
     // Update is called once per frame
