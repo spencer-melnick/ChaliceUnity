@@ -64,7 +64,7 @@ public class NoiseGenerator : MonoBehaviour
 
     private void Update()
     {
-        GetComponent<Renderer>().sharedMaterial.SetTexture("_NoiseTex", noiseTexture);
+        GetComponent<VolumetricCloudRenderer>().material.SetTexture("_NoiseTex", noiseTexture);
     }
 
     public void GeneratePreview()

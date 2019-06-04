@@ -15,6 +15,8 @@
             #pragma vertex vert
             #pragma fragment frag
 
+            #pragma multi_compile __ SKIP_DOWNSAMPLE
+
             #include "UnityCG.cginc"
 
             struct appdata
@@ -42,29 +44,34 @@
             float2 _Resolution;
             int _NumSamples;
 
-            // Currently oversamples max depth, needs fixing
-
             fixed4 frag (v2f i) : SV_Target
             {
-                float2 resolution = _Resolution;
-                float2 texelSize = float2(1, 1) / resolution;
+                #ifdef SKIP_DOWNSAMPLE
+                return SAMPLE_DEPTH_TEXTURE(_CameraDepthTexture, i.uv);
+                #endif
 
-                i.uv -= texelSize * _NumSamples;
+                int numSamples = _NumSamples;
+                float2 numTexels = _Resolution - float2(1, 1);
+                float2 texelSize = float2(1, 1) / numTexels;
 
-                float minDepth = SAMPLE_DEPTH_TEXTURE(_CameraDepthTexture, i.uv);
+                float2 texelStart = i.uv - (numSamples / 2.0) * texelSize;
 
-                for (int x = 0; x < _NumSamples; x++)
+                float minDepth = SAMPLE_DEPTH_TEXTURE(_CameraDepthTexture, texelStart);
+
+                for (int x = 0; x < numSamples; x++)
                 {
-                    for (int y = 0; y < _NumSamples; y++)
+                    for (int y = 0; y < numSamples; y++)
                     {
                         if (x == 0 && y == 0)
                         {
                             continue;
                         }
 
-                        float depth = SAMPLE_DEPTH_TEXTURE(_CameraDepthTexture, i.uv + float2(x * 2, y * 2) * texelSize);
+                        float2 texel = texelStart + float2(x, y) * texelSize;
+                        float depth = SAMPLE_DEPTH_TEXTURE(_CameraDepthTexture, texel.xy);
 
                         // Unconverted depth is inverted
+                        // Use min to get max
                         minDepth = min(minDepth, depth);
                     }
                 }

@@ -39,16 +39,27 @@ public class VolumetricCloudRenderer : MonoBehaviour
         int textureWidth = Mathf.FloorToInt(Screen.width / (float)renderScale);
         int textureHeight = Mathf.FloorToInt(Screen.height / (float)renderScale);
 
-        RenderTexture sceneDepthTexture = RenderTexture.GetTemporary(textureWidth, textureHeight, 0);
-        _downsampleMaterial.SetVector("_Resolution", new Vector4(Screen.width, Screen.height, 0, 0));
-        _downsampleMaterial.SetInt("_NumSamples", (int)renderScale);
-        Graphics.Blit(source, sceneDepthTexture, _downsampleMaterial);
+        RenderTexture sceneDepthTexture = null;
+
+        if (renderScale != RenderScale.Full)
+        {
+            sceneDepthTexture = RenderTexture.GetTemporary(textureWidth, textureHeight, 0);
+            _downsampleMaterial.SetVector("_Resolution", new Vector4(Screen.width, Screen.height, 0, 0));
+            _downsampleMaterial.SetInt("_NumSamples", (int)renderScale * 2);
+            Graphics.Blit(source, sceneDepthTexture, _downsampleMaterial);
+
+            material.EnableKeyword("LOWRES_DEPTH");
+            Shader.SetGlobalTexture("_CameraDepthTextureLowRes", sceneDepthTexture);
+        }
+        else
+        {
+            material.DisableKeyword("LOWRES_DEPTH");
+        }
 
         RenderTexture cloudColorTexture = RenderTexture.GetTemporary(textureWidth, textureHeight, 0, RenderTextureFormat.Default);
         RenderTexture cloudDepthTexture = RenderTexture.GetTemporary(textureWidth, textureHeight, 16, RenderTextureFormat.Depth);
+        cloudDepthTexture.filterMode = FilterMode.Point;
         Graphics.SetRenderTarget(cloudColorTexture.colorBuffer, cloudDepthTexture.depthBuffer);
-
-        Shader.SetGlobalTexture("_CameraDepthTextureLowRes", sceneDepthTexture);
 
         Matrix4x4 frustumCorners = GetFrustumCorners(Camera.current);
         Matrix4x4 inverseViewMatrix = Camera.current.cameraToWorldMatrix;
@@ -59,14 +70,18 @@ public class VolumetricCloudRenderer : MonoBehaviour
         material.SetPass(0);
 
         DrawFullscreenQuad();
-        sceneDepthTexture.Release();
+
+        if (sceneDepthTexture != null)
+        {
+            sceneDepthTexture.Release();
+        }
 
         _blendMaterial.SetTexture("_SecondTex", cloudColorTexture);
         _blendMaterial.SetTexture("_SecondDepth", cloudDepthTexture);
 
         Graphics.SetRenderTarget(destination);
         Graphics.Blit(source, destination, _blendMaterial);
-        
+
         cloudColorTexture.Release();
         cloudDepthTexture.Release();
     }

@@ -11,6 +11,7 @@ Shader "Unlit/Clouds"
         _NoiseTex ("Noise Texture", 3D) = "white" {}
         _CoverageTex ("Coverage Texture", 2D) = "white" {}
         _HeightGradientTex ("Height Gradient", 2D) = "white" {}
+        _JitterTex ("Jitter Texture", 2D) = "black" {}
 
         _LightScale ("Light Scale", Range(0.0, 5.0)) = 1.0
         _AmbientScale ("Ambient Scale", Range(0.0, 5.0)) = 1.0
@@ -68,6 +69,8 @@ Shader "Unlit/Clouds"
             #pragma shader_feature USE_POWDER_EFFECT
             #pragma shader_feature USE_SCATTERING
 
+            #pragma multi_compile __ LOWRES_DEPTH
+
             struct appdata
             {
                 float4 vertex : POSITION;
@@ -86,9 +89,14 @@ Shader "Unlit/Clouds"
             sampler3D _NoiseTex;
             sampler2D _CoverageTex;
             sampler2D _HeightGradientTex;
+            sampler2D _JitterTex;
+
 			sampler2D _CameraDepthTexture;
             sampler2D _CameraDepthTextureLowRes;
+
             float4 _NoiseTex_ST;
+
+            float4 _JitterTex_TexelSize;
 
             //**********************
             // Custom parameters
@@ -281,7 +289,7 @@ Shader "Unlit/Clouds"
                 #endif
             }
 
-            inline float3 sampleCloudLight(float3 rayPos, int numSteps, float rayDistance, float particleDensity, float hgScatterTerm)
+            inline float3 sampleCloudLight(float3 rayPos, int numSteps, float rayDistance, float particleDensity, float hgScatterTerm, float jitterAmount)
             {
                 // TODO: Snap ray distances to end of cloud volume?
 
@@ -289,9 +297,10 @@ Shader "Unlit/Clouds"
                 float3 rayDir = _WorldSpaceLightPos0;
                 float3 rayStep = rayDir * stepSize;
 
-                #ifdef USE_TEMPORAL_JITTER
-                rayStep += (abs(random(rayPos)) - 0.5) * rayStep;
-                #endif
+                // NOTE: Temporal jitter here adds a strange dark overlay in the pattern of the noise texture
+                // #ifdef USE_TEMPORAL_JITTER
+                // rayStep += jitterAmount * rayStep;
+                // #endif
 
                 float accumulatedDensity = 0.0;
                 
@@ -319,7 +328,7 @@ Shader "Unlit/Clouds"
                 return  directLight * _LightScale + ambientTerm * _AmbientScale;
             }
 
-            inline float4 sampleCloudRay(float3 rayPos, float3 rayDir, int numSteps, float rayDistance, float cameraDepth, out float depth)
+            inline float4 sampleCloudRay(float3 rayPos, float3 rayDir, int numSteps, float rayDistance, float cameraDepth, out float depth, float jitterAmount)
             {
                 float stepSize = rayDistance / numSteps;
                 float3 rayStep = rayDir * stepSize;
@@ -329,7 +338,7 @@ Shader "Unlit/Clouds"
 
                 #ifdef USE_TEMPORAL_JITTER
 				// Apply temporal jitter
-				rayPos += (abs(random(rayPos)) - 0.5) * rayStep;
+				rayPos += jitterAmount * rayStep;
 				#endif
 
                 float4 accumulatedColor = float4(0, 0, 0, 0);
@@ -349,7 +358,7 @@ Shader "Unlit/Clouds"
                         }
 
                         float particleDensity = sampleNoise(rayPos) * _Density * stepSize;
-                        float4 particleColor = float4(sampleCloudLight(rayPos, _ShadowSteps, _ShadowDistance, particleDensity, hgScatterTerm) * particleDensity, particleDensity);
+                        float4 particleColor = float4(sampleCloudLight(rayPos, _ShadowSteps, _ShadowDistance, particleDensity, hgScatterTerm, jitterAmount) * particleDensity, particleDensity);
 
                         // Alpha blend with particles in front of current particle
                         accumulatedColor += (1 - accumulatedColor.a) * particleColor;
@@ -403,7 +412,14 @@ Shader "Unlit/Clouds"
                 // rayPos = snapToView(rayPos, rayDir, viewStepSize);
 
 				// Calculate max depth
-				float screenDepth = DecodeFloatRGBA(tex2D(_CameraDepthTextureLowRes, input.uv));
+                float screenDepth;
+                
+                #ifdef LOWRES_DEPTH
+				screenDepth = DecodeFloatRGBA(tex2D(_CameraDepthTextureLowRes, input.uv));
+                #else
+                screenDepth = SAMPLE_DEPTH_TEXTURE(_CameraDepthTexture, input.uv);
+                #endif
+
                 screenDepth = LinearEyeDepth(screenDepth);
 
                 float cameraDepth = dot(_CameraPosition, rayDir);
@@ -426,8 +442,14 @@ Shader "Unlit/Clouds"
 				int numSteps = min(_NumSteps, screenDepth / viewStepSize);
 				viewStepSize = marchDistance / numSteps;
 
+                float jitterAmount = 0;
+
+                #ifdef USE_TEMPORAL_JITTER
+                jitterAmount = tex2D(_JitterTex, input.position.xy * _JitterTex_TexelSize.xy).r;
+                #endif
+
                 float linearDepth;
-				fixed4 color = saturate(sampleCloudRay(rayPos, rayDir, numSteps, marchDistance, cameraDepth, linearDepth));
+				fixed4 color = saturate(sampleCloudRay(rayPos, rayDir, numSteps, marchDistance, cameraDepth, linearDepth, jitterAmount));
 
                 depth = LinearEyeDepthToOutDepth(linearDepth);
             

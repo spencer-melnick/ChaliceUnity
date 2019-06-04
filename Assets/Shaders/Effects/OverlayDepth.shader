@@ -56,6 +56,8 @@
 
                 // return testColor;
 
+                // return tex2D(_SecondTex, i.uv);
+
                 if (destDepth > srcDepth)
                 {
                     return dest;
