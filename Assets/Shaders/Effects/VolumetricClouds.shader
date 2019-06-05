@@ -8,7 +8,7 @@ Shader "Unlit/Clouds"
 {
     Properties
     {
-        _NoiseTex ("Noise Texture", 3D) = "white" {}
+        // _NoiseTex ("Noise Texture", 3D) = "white" {}
         _CoverageTex ("Coverage Texture", 2D) = "white" {}
         _HeightGradientTex ("Height Gradient", 2D) = "white" {}
         _JitterTex ("Jitter Texture", 2D) = "black" {}

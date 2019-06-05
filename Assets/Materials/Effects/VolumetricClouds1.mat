@@ -9,7 +9,7 @@ Material:
   m_PrefabAsset: {fileID: 0}
   m_Name: VolumetricClouds1
   m_Shader: {fileID: 4800000, guid: fbb5e24273211634594fb9d7f585ee95, type: 3}
-  m_ShaderKeywords: USE_POWDER_EFFECT USE_SCATTERING
+  m_ShaderKeywords: LOWRES_DEPTH USE_POWDER_EFFECT USE_SCATTERING USE_TEMPORAL_JITTER
   m_LightmapFlags: 4
   m_EnableInstancingVariants: 0
   m_DoubleSidedGI: 0
@@ -47,6 +47,10 @@ Material:
         m_Texture: {fileID: 2800000, guid: b8f5157f5c9def94a8d30f47a1420a62, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
+    - _JitterTex:
+        m_Texture: {fileID: 2800000, guid: 625b8ae6404a25d4fb5039ddd6d79675, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     - _MainTex:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
@@ -69,20 +73,20 @@ Material:
         m_Offset: {x: 0, y: 0}
     m_Floats:
     - _AmbientScale: 0.9
-    - _BackwardScattering: -0.1
+    - _BackwardScattering: 0
     - _BumpScale: 1
     - _CloudDistance: 500
     - _Contrast: 6.96
     - _Cutoff: 0.5
-    - _Density: 0.82
+    - _Density: 0.63
     - _DetailNormalMapScale: 1
     - _DstBlend: 0
-    - _ForwardScattering: 0.1
+    - _ForwardScattering: 0.2
     - _GlossMapScale: 1
     - _Glossiness: 0.5
     - _GlossyReflections: 1
     - _LightScale: 0.9
-    - _MarchDistance: 70
+    - _MarchDistance: 50
     - _Metallic: 0
     - _Mode: 0
     - _NumSteps: 32
@@ -90,14 +94,14 @@ Material:
     - _Parallax: 0.02
     - _PowderFactor: 17.1
     - _ShadowDensity: 0.1
-    - _ShadowDistance: 20
+    - _ShadowDistance: 15
     - _ShadowSteps: 6
     - _SmoothnessTextureChannel: 0
     - _SpecularHighlights: 1
     - _SrcBlend: 1
     - _TileClouds: 0
     - _UVSec: 0
-    - _UseJitter: 0
+    - _UseJitter: 1
     - _UsePowder: 1
     - _UseScattering: 1
     - _ZWrite: 1
