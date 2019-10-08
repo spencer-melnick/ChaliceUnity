@@ -30,6 +30,8 @@ Shader "Unlit/Clouds"
         _NoiseScale ("Noise Scale", Vector) = (10, 10, 10, 1)
         _NoiseOffset ("Noise Offset", Vector) = (0, 0, 0, 1)
 
+        _TemporalAlpha ("Temporal Blend Factor", Range(0, 1)) = 0.25
+
         [Toggle(TILE_CLOUDS)]
         _TileClouds ("Tile Clouds", float) = 0.0
 
@@ -94,6 +96,8 @@ Shader "Unlit/Clouds"
 			sampler2D _CameraDepthTexture;
             sampler2D _CameraDepthTextureLowRes;
 
+            sampler2D _PreviousFrame;
+
             float4 _NoiseTex_ST;
 
             float4 _JitterTex_TexelSize;
@@ -125,10 +129,15 @@ Shader "Unlit/Clouds"
             float _ForwardScattering;
             float _BackwardScattering;
 
+            int _FrameNumber;
+
+            float _TemporalAlpha;
+
             // Loaded matrices
 
 			float4x4 _FrustumCorners;
 			float4x4 _InverseView;
+            float4x4 _PreviousVP;
 			float4 _CameraPosition;
 
             vertOutput vert (appdata v)
@@ -444,19 +453,34 @@ Shader "Unlit/Clouds"
 
                 float jitterAmount = 0;
 
+                const float goldenRatioFractional = 0.61803398875;
+
                 #ifdef USE_TEMPORAL_JITTER
                 jitterAmount = tex2D(_JitterTex, input.position.xy * _JitterTex_TexelSize.xy).r;
+                jitterAmount += goldenRatioFractional * _FrameNumber;
+                jitterAmount = frac(jitterAmount);
                 #endif
 
                 float linearDepth;
 				fixed4 color = saturate(sampleCloudRay(rayPos, rayDir, numSteps, marchDistance, cameraDepth, linearDepth, jitterAmount));
 
                 depth = LinearEyeDepthToOutDepth(linearDepth);
+
+                return fixed4(color.rgb, color.a);
+
+                float3 worldPos = _CameraPosition + rayDir * -1;
+                float3 previousFramePos = mul(_PreviousVP, float4(worldPos, 1)).xyz;
+
+                fixed4 previousColor = tex2D(_PreviousFrame, input.uv);
+
+                // return previousColor;
             
                 // apply fog
                 UNITY_APPLY_FOG(input.fogCoord, color);
 
-                return color;
+                // TODO: Figure out reprojection and alpha blending
+
+                return (1 - _TemporalAlpha) * color + _TemporalAlpha * previousColor;
             }
 
 

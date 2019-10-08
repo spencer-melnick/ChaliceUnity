@@ -9,7 +9,7 @@ Material:
   m_PrefabAsset: {fileID: 0}
   m_Name: VolumetricClouds1
   m_Shader: {fileID: 4800000, guid: fbb5e24273211634594fb9d7f585ee95, type: 3}
-  m_ShaderKeywords: LOWRES_DEPTH USE_POWDER_EFFECT USE_SCATTERING USE_TEMPORAL_JITTER
+  m_ShaderKeywords: LOWRES_DEPTH USE_SCATTERING USE_TEMPORAL_JITTER
   m_LightmapFlags: 4
   m_EnableInstancingVariants: 0
   m_DoubleSidedGI: 0
@@ -78,7 +78,7 @@ Material:
     - _CloudDistance: 500
     - _Contrast: 6.96
     - _Cutoff: 0.5
-    - _Density: 0.63
+    - _Density: 0.27
     - _DetailNormalMapScale: 1
     - _DstBlend: 0
     - _ForwardScattering: 0.2
@@ -94,23 +94,24 @@ Material:
     - _Parallax: 0.02
     - _PowderFactor: 17.1
     - _ShadowDensity: 0.1
-    - _ShadowDistance: 15
-    - _ShadowSteps: 6
+    - _ShadowDistance: 11.2
+    - _ShadowSteps: 21.2
     - _SmoothnessTextureChannel: 0
     - _SpecularHighlights: 1
     - _SrcBlend: 1
+    - _TemporalAlpha: 0.235
     - _TileClouds: 0
     - _UVSec: 0
     - _UseJitter: 1
-    - _UsePowder: 1
+    - _UsePowder: 0
     - _UseScattering: 1
     - _ZWrite: 1
     m_Colors:
-    - _CloudOffset: {r: 0, g: 30, b: 0, a: 1}
-    - _CloudScale: {r: 1000, g: 30, b: 1000, a: 1}
+    - _CloudOffset: {r: 0, g: 36.2, b: 0, a: 1}
+    - _CloudScale: {r: 300, g: 41.1, b: 300, a: 1}
     - _Color: {r: 1, g: 1, b: 1, a: 1}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
     - _NoiseOffset: {r: 20.767262, g: 0, b: 0, a: 0}
-    - _NoiseScale: {r: 50, g: 50, b: 50, a: 1}
+    - _NoiseScale: {r: 34.4, g: 33.6, b: 25.5, a: 1}
     - _Offset: {r: 0, g: 0, b: 0, a: 1}
     - _Scale: {r: 2, g: 2, b: 2, a: 1}

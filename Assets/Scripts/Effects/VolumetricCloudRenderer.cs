@@ -19,6 +19,11 @@ public class VolumetricCloudRenderer : MonoBehaviour
 
     private Material _downsampleMaterial;
     private Material _blendMaterial;
+    private int _frameNumber = 0;
+    private int _maxFrameNumber = 60;
+
+    private RenderTexture _previousCloudColorTexture = null;
+    private Matrix4x4 _previousViewProjection = Matrix4x4.identity;
 
     private void Awake()
     {
@@ -66,7 +71,13 @@ public class VolumetricCloudRenderer : MonoBehaviour
         material.SetMatrix("_FrustumCorners", frustumCorners);
         material.SetMatrix("_InverseView", inverseViewMatrix);
         material.SetVector("_CameraPosition", Camera.current.transform.position);
+        material.SetInt("_FrameNumber", _frameNumber);
+        material.SetTexture("_PreviousFrame", _previousCloudColorTexture);
+        material.SetMatrix("_PreviousVP", _previousViewProjection);
         material.SetPass(0);
+
+        _previousViewProjection = Camera.current.projectionMatrix * Camera.current.worldToCameraMatrix;
+        // _previousViewProjection = Camera.current.worldToCameraMatrix;
 
         DrawFullscreenQuad();
 
@@ -81,8 +92,15 @@ public class VolumetricCloudRenderer : MonoBehaviour
         Graphics.SetRenderTarget(destination);
         Graphics.Blit(source, destination, _blendMaterial);
 
-        cloudColorTexture.Release();
+        if (_previousCloudColorTexture != null)
+        {
+            _previousCloudColorTexture.Release();
+        }
+
+        _previousCloudColorTexture = cloudColorTexture;
         cloudDepthTexture.Release();
+
+        _frameNumber = (_frameNumber + 1) % _maxFrameNumber;
     }
 
     // Frustrum corners from https://flafla2.github.io/2016/10/01/raymarching.html
