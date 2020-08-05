@@ -16,4 +16,4 @@ The post-processing version supports half and quarter resolution rendering for b
 
 !This project will not work in your game out of the box!
 
-The current commit contains code for experimental temporal reprojection that does not work currently. If you wish to see some nice clouds, you will need to revert to the [commit for the last functional post-processing version](https://github.com/spencer-melnick/Chalice/commit/ad475f468e0bae0ae46a472d35a493a61e6efae1) or the [commit for the surface material](https://github.com/spencer-melnick/Chalice/commit/a77bd104669fb0a2b431b6dd5dcc92215a224919).
+The current commit contains code for experimental temporal reprojection that does not work properly. If you wish to see some nice clouds, you will need to revert to the [commit for the last functional post-processing version](https://github.com/spencer-melnick/Chalice/commit/ad475f468e0bae0ae46a472d35a493a61e6efae1) or the [commit for the surface material](https://github.com/spencer-melnick/Chalice/commit/a77bd104669fb0a2b431b6dd5dcc92215a224919).
